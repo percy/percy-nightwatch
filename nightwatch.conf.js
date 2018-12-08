@@ -1,0 +1,38 @@
+const chromedriver = require('chromedriver')
+const seleniumServer = require('selenium-server')
+const os = require('os')
+const percy = require('./dist/percySnapshot.js')
+
+module.exports = {
+  src_folders: ['tests'],
+  exclude: ['testapp'],
+  output_folder: false,
+  custom_commands_path: [percy.path],
+
+  selenium: {
+    start_process: true,
+    server_path: seleniumServer.path,
+    log_path: false,
+    cli_args: {
+      'webdriver.chrome.driver': chromedriver.path,
+    },
+  },
+
+  test_settings: {
+    default: {
+      desiredCapabilities: {
+        browserName: 'chrome',
+        javascriptEnabled: true,
+        acceptSslCerts: true,
+        chromeOptions: {
+          args: [
+            'disable-web-security',
+            'allow-running-insecure-content',
+            'headless',
+            'ignore-certificate-errors',
+          ],
+        },
+      },
+    },
+  },
+}
