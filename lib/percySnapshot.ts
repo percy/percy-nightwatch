@@ -1,4 +1,5 @@
 import fs = require('fs')
+import { agentJsFilename } from '@percy/agent'
 import { clientInfo } from './environment'
 
 declare var PercyAgent: any
@@ -16,7 +17,7 @@ declare var PercyAgent: any
 export function command(this: any, name: string, options: any = {}) {
   name = name || this.currentTest.name
 
-  this.execute(fs.readFileSync(_agentJsFilepath()).toString())
+  this.execute(fs.readFileSync(agentJsFilename()).toString())
   this.execute(
     (name: string, options: any, clientInfo: string) => {
       const percyAgentClient = new PercyAgent({ clientInfo })
@@ -38,11 +39,3 @@ export function command(this: any, name: string, options: any = {}) {
  * }
  */
 export const path: string = __dirname
-
-function _agentJsFilepath(): string {
-  try {
-    return require.resolve('@percy/agent/dist/public/percy-agent.js')
-  } catch {
-    return 'node_modules/@percy/agent/dist/public/percy-agent.js'
-  }
-}
