@@ -8,6 +8,13 @@
     "type": "git",
     "url": "https://github.com/percy/percy-nightwatch.git"
   },
+  "keywords": [
+    "nightwatch",
+    "testing"
+  ],
+  "engines": {
+    "node": ">=8.0.0"
+  },
   "author": "Perceptual Inc.",
   "license": "MIT",
   "devDependencies": {
