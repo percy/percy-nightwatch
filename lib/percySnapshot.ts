@@ -1,7 +1,6 @@
 import fs = require('fs')
-import { agentJsFilename } from '@percy/agent'
 import { clientInfo } from './environment'
-
+const { agentJsFilename } = require('@percy/agent/dist/utils/sdk-utils')
 declare var PercyAgent: any
 
 /**
@@ -23,7 +22,7 @@ export function command(this: any, name: string, options: any = {}) {
       const percyAgentClient = new PercyAgent({ clientInfo })
       percyAgentClient.snapshot(name, options)
     },
-    [name, options, clientInfo()]
+    [name, options, clientInfo()],
   )
 }
 
