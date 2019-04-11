@@ -3,9 +3,15 @@ module.exports = {
     browser.end()
   },
 
-  'snapshots HTTPS website': function(browser) {
+  'snapshots a website with HTTP': function(browser) {
     browser
-      .url('https://www.google.com/')
-      .percySnapshot('snapshots HTTPS website', { widths: [768, 992, 1200] })
+      .url('http://example.com/')
+      .percySnapshot('http://example.com/')
+  },
+
+  'snapshots a website with HTTPS, strict CSP, CORS and HSTS setup': function(browser) {
+    browser
+      .url('https://sdk-test.percy.dev')
+      .percySnapshot('https://sdk-test.percy.dev')
   },
 }
