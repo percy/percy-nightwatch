@@ -1,6 +1,6 @@
 import fs = require('fs')
 import { clientInfo } from './environment'
-const { agentJsFilename } = require('@percy/agent/dist/utils/sdk-utils')
+const { agentJsFilename, isAgentRunning, postSnapshot } = require('@percy/agent/dist/utils/sdk-utils')
 declare var PercyAgent: any
 
 /**
@@ -17,13 +17,31 @@ export function command(this: any, name: string, options: any = {}) {
   name = name || this.currentTest.name
 
   this.execute(fs.readFileSync(agentJsFilename()).toString())
-  this.execute(
-    (name: string, options: any, clientInfo: string) => {
-      const percyAgentClient = new PercyAgent({ clientInfo })
-      percyAgentClient.snapshot(name, options)
-    },
-    [name, options, clientInfo()],
-  )
+
+  return isAgentRunning().then((canSnapshot: boolean) => {
+    if(!canSnapshot) { return }
+
+    return this.execute(
+      (name: string, options: any, clientInfo: string) => {
+        const percyAgentClient = new PercyAgent({ clientInfo, handleAgentCommunication: false })
+
+        return {
+          dom: percyAgentClient.snapshot(name, options),
+          url: window.location.href
+        }
+      },
+      [name, options, clientInfo()],
+      (browserReturn: any) => {
+        return postSnapshot({
+          name,
+          url: browserReturn.value.url,
+          domSnapshot: browserReturn.value.dom,
+          clientInfo: clientInfo(),
+          ...options
+        })
+      }
+    )
+  })
 }
 
 /**
