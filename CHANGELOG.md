@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/percy/percy-nightwatch/compare/v1.0.4...v1.0.5) (2019-06-04)
+
+
+### Bug Fixes
+
+* POST DOM snapshot from Node rather than browser because of CSP ([#61](https://github.com/percy/percy-nightwatch/issues/61)) ([4d1b6d7](https://github.com/percy/percy-nightwatch/commit/4d1b6d7))
+
 ## [1.0.4](https://github.com/percy/percy-nightwatch/compare/v1.0.3...v1.0.4) (2019-05-01)
 
 
