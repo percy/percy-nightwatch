@@ -25,6 +25,9 @@ module.exports = {
         javascriptEnabled: true,
         acceptSslCerts: true,
         chromeOptions: {
+          // `w3c: false` is needed for Chrome versions 75 and higher:
+          // https://github.com/nightwatchjs/nightwatch/releases/tag/v1.1.12
+          w3c: false,
           args: [
             'disable-web-security',
             'allow-running-insecure-content',
