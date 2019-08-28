@@ -32,8 +32,7 @@
     "prepublishOnly": "npm run build",
     "build": "tsc",
     "pretest": "npm run build",
-    "test": "percy exec -- nightwatch",
-    "test-win": "npm run pretest && percy exec -- nightwatch.cmd"
+    "test": "percy exec -- nightwatch"
   },
   "peerDependencies": {},
   "publishConfig": {
