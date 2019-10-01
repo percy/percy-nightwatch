@@ -16,6 +16,9 @@ test_script:
   # Output useful info for debugging.
   - node --version
   - yarn --version
+  # Install the version of chromedriver that works
+  # with the version of Chrome appveyor has
+  - yarn add -D chromedriver@75.0.0
   # run tests
   - yarn test
 
