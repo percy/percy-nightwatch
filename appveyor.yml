@@ -9,15 +9,18 @@ install:
   # Get the latest stable version of Node.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
-  - npm ci
+  - yarn
 
 # Post-install test scripts.
 test_script:
   # Output useful info for debugging.
   - node --version
-  - npm --version
+  - yarn --version
+  # Install the version of chromedriver that works
+  # with the version of Chrome appveyor has
+  - yarn add -D chromedriver@75.0.0
   # run tests
-  - npm run test-win
+  - yarn test
 
 build:
   off
