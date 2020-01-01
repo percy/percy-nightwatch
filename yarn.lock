@@ -189,9 +189,9 @@
     universal-user-agent "^4.0.0"
 
 "@percy/agent@~0":
-  version "0.19.7"
-  resolved "https://registry.yarnpkg.com/@percy/agent/-/agent-0.19.7.tgz#7a5ea896ed671d792ecab2d5ed7288165910abb5"
-  integrity sha512-dELU44e53vBj5iSl1GYXZ7DTGvrM5vW5oLG9wfoQTXU+30Zohz7W1XixCVmmICTn4VccmSlK0Zo71R71LrEyQQ==
+  version "0.20.6"
+  resolved "https://registry.yarnpkg.com/@percy/agent/-/agent-0.20.6.tgz#2962ce28ac02f0dee9edd0d4663728c664ed0b5e"
+  integrity sha512-E+zfeZAz1r0i3CkAJlkg/fb3vBmh2fHqY3f7PLhSNt2aQONspoSLNDQ63XSioMRWMApLCEO5lxQ6k3KbxK91Cg==
   dependencies:
     "@oclif/command" "1.5.16"
     "@oclif/config" "^1"
@@ -213,6 +213,7 @@
     percy-client "^3.2.0"
     puppeteer "^1.13.0"
     retry-axios "^1.0.1"
+    which "^2.0.1"
     winston "^3.0.0"
 
 "@percy/tslint@^1.0.0":
