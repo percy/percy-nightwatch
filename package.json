@@ -1,6 +1,6 @@
 {
   "name": "@percy/nightwatch",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Percy.io integration with Nightwatch",
   "main": "dist/percySnapshot.js",
   "types": "dist/percySnapshot.d.ts",

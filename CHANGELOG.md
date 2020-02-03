@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/percy/percy-nightwatch/compare/v1.0.5...v1.1.0) (2020-02-03)
+
+
+### Features
+
+* Use node v10 ([#129](https://github.com/percy/percy-nightwatch/issues/129)) ([e3c09da](https://github.com/percy/percy-nightwatch/commit/e3c09da))
+
 ## [1.0.5](https://github.com/percy/percy-nightwatch/compare/v1.0.4...v1.0.5) (2019-06-04)
 
 
