@@ -1,41 +1,26 @@
-const chromedriver = require('chromedriver')
-const seleniumServer = require('selenium-server')
-const os = require('os')
-const percy = require('./dist/percySnapshot.js')
+const geckodriver = require('geckodriver');
+const percy = require('.');
 
 module.exports = {
-  src_folders: ['tests'],
-  exclude: ['testapp'],
+  src_folders: ['test'],
   output_folder: false,
   custom_commands_path: [percy.path],
 
-  selenium: {
+  webdriver: {
     start_process: true,
-    server_path: seleniumServer.path,
-    log_path: false,
-    cli_args: {
-      'webdriver.chrome.driver': chromedriver.path,
-    },
+    server_path: geckodriver.path
   },
 
   test_settings: {
     default: {
       desiredCapabilities: {
-        browserName: 'chrome',
-        javascriptEnabled: true,
-        acceptSslCerts: true,
-        chromeOptions: {
-          // `w3c: false` is needed for Chrome versions 75 and higher:
-          // https://github.com/nightwatchjs/nightwatch/releases/tag/v1.1.12
-          w3c: false,
-          args: [
-            'disable-web-security',
-            'allow-running-insecure-content',
-            'headless',
-            'ignore-certificate-errors',
-          ],
-        },
-      },
-    },
-  },
-}
+        browserName: 'firefox',
+        alwaysMatch: {
+          'moz:firefoxOptions': {
+            args: ['-headless']
+          }
+        }
+      }
+    }
+  }
+};
