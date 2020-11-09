@@ -23,7 +23,7 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "~1.0.0-beta.21"
+    "@percy/sdk-utils": "~1.0.0-beta.22"
   },
   "peerDependencies": {
     "nightwatch": "~1"
