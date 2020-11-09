@@ -1,5 +1,3 @@
-# Node dependencies
-node_modules/
-
-# Compiled JavaScript files
-dist/
+node_modules
+geckodriver.log
+.nyc_output
