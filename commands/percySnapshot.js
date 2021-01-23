@@ -11,6 +11,7 @@ module.exports = class PercySnapshotCommand {
   async command(name, options) {
     if (!(await utils.isPercyEnabled())) return;
     name = name || this.api.currentTest.name;
+    let log = utils.logger('nightwatch');
 
     try {
       // Inject the DOM serialization script
@@ -39,8 +40,8 @@ module.exports = class PercySnapshotCommand {
       });
     } catch (error) {
       // Handle errors
-      utils.log('error', `Could not take DOM snapshot "${name}"`);
-      utils.log('error', error);
+      log.error(`Could not take DOM snapshot "${name}"`);
+      log.error(error);
     }
   }
 };
