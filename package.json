@@ -26,13 +26,13 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "~1.0.0-beta.30"
+    "@percy/sdk-utils": "~1.0.0-beta.32"
   },
   "peerDependencies": {
     "nightwatch": "~1"
   },
   "devDependencies": {
-    "@percy/core": "~1.0.0-beta.30",
+    "@percy/core": "~1.0.0-beta.32",
     "@types/nightwatch": "^1.3.1",
     "eslint": "^7.11.0",
     "eslint-config-standard": "^16.0.1",
