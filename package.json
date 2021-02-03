@@ -16,6 +16,9 @@
     "commands/percySnapshot.js",
     "types/percySnapshot.d.ts"
   ],
+  "engines": {
+    "node": ">=12"
+  },
   "scripts": {
     "lint": "eslint --ignore-path .gitignore .",
     "test": "nightwatch",
