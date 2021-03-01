@@ -284,7 +284,7 @@
   dependencies:
     dotenv "^8.2.0"
 
-"@percy/logger@^1.0.0-beta.34", "@percy/logger@^1.0.0-beta.35":
+"@percy/logger@^1.0.0-beta.35":
   version "1.0.0-beta.35"
   resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.35.tgz#c877350333d49d06e849ada73adfd03214cd2f3e"
   integrity sha512-Rb0rRb+T8dJEy5WJl+32prdyO7nATp4kUvEQzTrhdjImTUAggqpISF7bagExoQ7JOytXhebk3MpJBD3xVk92rg==
@@ -338,9 +338,9 @@
   integrity sha512-fZQQafSREFyuZcdWFAExYjBiCL7AUCdgsk80iO0q4yihYYdcIiH28CcuPTGFgLOCC8RlW49GSQxdHwZP+I7CNg==
 
 "@types/nightwatch@^1.3.1":
-  version "1.3.2"
-  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-1.3.2.tgz#dd3e8f7e067b3574d0868faefb96c5f75b7790f5"
-  integrity sha512-1c8qFnbWj6DUweZOHkp2opUQqTsqA4E30UARZUuIZNQzjXHaEK57HWYlxm1fEpbZK30Gh2AbJoEh6XnFVm3Hxg==
+  version "1.3.3"
+  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-1.3.3.tgz#d29a7984a59cc0bf2fcda420283a81ede6e78f46"
+  integrity sha512-sHgx07IjWWrtG8gcpCNHc0k5S9A+B8C7Pqf7v5AdSpBqweyVfwSty8S91e+YFJsNDn60IeRWCCUfbcemxv86SA==
 
 "@types/node@*":
   version "14.14.6"
