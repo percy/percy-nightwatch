@@ -125,20 +125,13 @@ This will automatically run the changes described below for you.
 
 ### Manually
 
-#### Import change
+#### Installing `@percy/cli`
 
-In `v1.x` there wasn't a default export of the package (only a named
-export). With `v2.x` the named export is removed and there is only a default
-export.
+If you're coming from a pre-2.0 version of this package, make sure to install `@percy/cli` after
+upgrading to retain any existing scripts that reference the Percy CLI command.
 
-``` javascript
-// old
-import { percySnapshot } from '@percy/nightwatch';
-const { percySnapshot } = require('@percy/nightwatch');
-
-// new
-import percySnapshot from '@percy/nightwatch';
-const percySnapshot = require('@percy/nightwatch');
+```sh-session
+$ npm install --save-dev @percy/cli
 ```
 
 #### Migrating Config
