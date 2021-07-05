@@ -305,7 +305,7 @@
   dependencies:
     dotenv "^10.0.0"
 
-"@percy/logger@^1.0.0-beta.52", "@percy/logger@^1.0.0-beta.56":
+"@percy/logger@^1.0.0-beta.56":
   version "1.0.0-beta.56"
   resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.56.tgz#2f028b14f17a610b80457b2da67ceb50f9ee2940"
   integrity sha512-1GEAJgZBWP/d/d7cecHVHFXE+29l2Rkaxc8PHtDqnW9vz6KWtzsmZF2HmM0hhq2qcXH3hVPz+NKn+fGWfAZ9nA==
@@ -2961,9 +2961,9 @@ netmask@^2.0.1:
   integrity sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==
 
 nightwatch@^1.5.1:
-  version "1.7.6"
-  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-1.7.6.tgz#6b76be0893a354f373b40bdbbb126254f8f9b7de"
-  integrity sha512-hObbZqPJ/OmPXnY2fSolJu2Ocb00uw4DflJb1HvNOzkVHG2beFxil6UwXJUUgvCWavwujBiH3XWYDbjKv1/2/Q==
+  version "1.7.7"
+  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-1.7.7.tgz#0061a98258b131f9b38730ab1ffb80d47ab816cf"
+  integrity sha512-yKMiIQCRCqGcMbULENSbQt1fX3SRoKlswt7EuMphTUkODkFGFtasba9eGoWnLyiHl5ZAA9JFhO1DVn+IanbGYA==
   dependencies:
     assertion-error "^1.1.0"
     chai-nightwatch "^0.4.0"
