@@ -317,11 +317,6 @@
   resolved "https://registry.yarnpkg.com/@percy/env/-/env-1.0.0-beta.71.tgz#bbe89285817f9a578c3cdfc0d1ee74c5b3d768c7"
   integrity sha512-DPiCL2xuAdaTghziP2XtmaSMp1t3Mb0oo3yEg2HOpTjaPqu/tX9LjI+cJOs2jKf/jIwC3ris3agcafceXiGWZw==
 
-"@percy/logger@1.0.0-beta.70":
-  version "1.0.0-beta.70"
-  resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.70.tgz#1fe0a234ea1d249c3e3667870a31d59de56bf78a"
-  integrity sha512-QUVdp/FEsoHYftakuxe67/e/OVeVX6d2Fgur+thhqgHZ5GD87TwFsB+PH8kP6b5/ZZ+bOysT6bbxbiDvGEqWwg==
-
 "@percy/logger@1.0.0-beta.71":
   version "1.0.0-beta.71"
   resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.71.tgz#03b458b1e43506c08c062f11b46aa2c9b1826fbf"
@@ -3029,9 +3024,9 @@ netmask@^2.0.1:
   integrity sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==
 
 nightwatch@^1.5.1:
-  version "1.7.12"
-  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-1.7.12.tgz#afb9a084bf242a4d4e41846a4ae9700296115845"
-  integrity sha512-3icG3aS5DMqorOGiILlJ4cDPIuelFv6phJSKsaKnPHpjIihPKIMt02909yxfDHmYsFzCoiKkI5UH9HcUYTjLVg==
+  version "1.7.13"
+  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-1.7.13.tgz#2d455ab5fadf8ec514622828171f4c2c8cbf44b1"
+  integrity sha512-bX7mI5JmRdGvVxWYIyUgpF1vuBc/Tlx3nFQc511CW90gbyvQ3PY18wqT5wul45mR2BjDCnCYkxHJcXRKnxC91A==
   dependencies:
     ansi-regex "^6.0.1"
     assertion-error "^1.1.0"
