@@ -1,5 +1,3 @@
-const utils = require('@percy/sdk-utils');
-
 // Collect client and environment information
 const sdkPkg = require('../package.json');
 const nightwatchPkg = require('nightwatch/package.json');
@@ -9,6 +7,8 @@ const ENV_INFO = `${nightwatchPkg.name}/${nightwatchPkg.version}`;
 // Take a DOM snapshot and post it to the snapshot endpoint
 module.exports = class PercySnapshotCommand {
   async command(name, options) {
+    let utils = await import('@percy/sdk-utils');
+
     if (!(await utils.isPercyEnabled())) return;
     name = name || this.api.currentTest.name;
     let log = utils.logger('nightwatch');
