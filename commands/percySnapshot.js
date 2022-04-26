@@ -19,7 +19,7 @@ module.exports = class PercySnapshotCommand {
 
       // Serialize and capture the DOM
       /* istanbul ignore next: no instrumenting injected code */
-      let { value: { domSnapshot, url } } = (
+      let { domSnapshot, url } = (
         await this.api.execute(function(options) {
           return {
             /* eslint-disable-next-line no-undef */
