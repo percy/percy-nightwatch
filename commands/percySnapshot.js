@@ -19,15 +19,18 @@ module.exports = class PercySnapshotCommand {
 
       // Serialize and capture the DOM
       /* istanbul ignore next: no instrumenting injected code */
-      let { value: { domSnapshot, url } } = (
-        await this.api.execute(function(options) {
+      let { domSnapshot, url } = await new Promise((resolve) => {
+        this.api.execute(function(options) {
           return {
             /* eslint-disable-next-line no-undef */
             domSnapshot: PercyDOM.serialize(options),
             url: document.URL
           };
-        }, [options])
-      );
+        }, [options], function(result) {
+          // Check if we're in Nightwatch 1.x (which returns with `.value`)
+          result.value ? resolve(result.value) : resolve(result);
+        });
+      });
 
       // Post the DOM to the snapshot endpoint with snapshot options and other info
       await utils.postSnapshot({

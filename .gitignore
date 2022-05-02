@@ -1,3 +1,4 @@
 node_modules
 geckodriver.log
 .nyc_output
+logs/
