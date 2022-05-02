@@ -21,7 +21,7 @@
   },
   "scripts": {
     "lint": "eslint --ignore-path .gitignore .",
-    "test": "nightwatch",
+    "test": "MOZ_HEADLESS=1 nightwatch",
     "test:coverage": "nyc yarn test",
     "test:types": "tsd"
   },
