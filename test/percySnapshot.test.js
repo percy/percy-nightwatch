@@ -1,9 +1,8 @@
 const expect = require('expect');
-let helpers;
+const helpers = require('@percy/sdk-utils/test/helpers');
 
 module.exports = {
   async before() {
-    ({ default: helpers } = await import('@percy/sdk-utils/test/helpers'));
     await helpers.mockSite();
   },
 
