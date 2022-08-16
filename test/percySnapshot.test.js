@@ -2,76 +2,60 @@ const expect = require('expect');
 const helpers = require('@percy/sdk-utils/test/helpers');
 
 module.exports = {
-  async before() {
-    await helpers.mockSite();
-  },
-
-  async after() {
-    await helpers.closeSite();
-  },
-
   async beforeEach(browser) {
-    await helpers.setup();
-    browser.url('http://localhost:8000');
+    await helpers.setupTest();
+    await browser.url(helpers.testSnapshotURL);
   },
 
-  async afterEach(browser) {
-    await helpers.teardown();
+  after(browser) {
     browser.end();
   },
 
   'disables snapshots when the healthcheck fails': async browser => {
-    await helpers.testFailure('/percy/healthcheck');
+    await helpers.test('error', '/percy/healthcheck');
 
     await browser.percySnapshot();
     await browser.percySnapshot('Snapshot 2');
 
-    await expect(helpers.getRequests()).resolves.toEqual([
-      ['/percy/healthcheck']
-    ]);
-
-    expect(helpers.logger.stderr).toEqual([]);
-    expect(helpers.logger.stdout).toEqual([
-      '[percy] Percy is not running, disabling snapshots'
-    ]);
+    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+      'Percy is not running, disabling snapshots'
+    ]));
 
     browser.assert.ok(true);
   },
 
-  'posts snapshots to the local percy server': async browser => {
+  'uses test name for snapshot name when percySnapshot is blank': async browser => {
     await browser.percySnapshot();
+
+    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+      'Snapshot found: uses test name for snapshot name when percySnapshot is blank'
+    ]));
+
+    browser.assert.ok(true);
+  },
+
+  'posts snapshots to the local percy server': async function(browser) {
+    await browser.percySnapshot('Snapshot 1');
     await browser.percySnapshot('Snapshot 2');
 
-    await expect(helpers.getRequests()).resolves.toEqual([
-      ['/percy/healthcheck'],
-      ['/percy/dom.js'],
-      ['/percy/snapshot', {
-        name: 'posts snapshots to the local percy server',
-        url: 'http://localhost:8000/',
-        domSnapshot: '<html><head></head><body>Snapshot Me</body></html>',
-        clientInfo: expect.stringMatching(/@percy\/nightwatch\/.+/),
-        environmentInfo: expect.stringMatching(/nightwatch\/.+/)
-      }],
-      ['/percy/snapshot', expect.objectContaining({
-        name: 'Snapshot 2'
-      })]
-    ]);
+    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+      'Snapshot found: Snapshot 1',
+      'Snapshot found: Snapshot 2',
+      `- url: ${helpers.testSnapshotURL}`,
+      expect.stringMatching(/clientInfo: @percy\/nightwatch\/.+/),
+      expect.stringMatching(/environmentInfo: nightwatch\/.+/)
+    ]));
 
-    expect(helpers.logger.stdout).toEqual([]);
-    expect(helpers.logger.stderr).toEqual([]);
     browser.assert.ok(true);
   },
 
   'handles snapshot failures': async browser => {
-    await helpers.testFailure('/percy/snapshot', 'failure');
+    await helpers.test('error', '/percy/snapshot');
+    await browser.percySnapshot('Snapshot 1');
 
-    await browser.percySnapshot();
-
-    expect(helpers.logger.stdout).toEqual([]);
-    expect(helpers.logger.stderr).toEqual([
-      '[percy] Could not take DOM snapshot "handles snapshot failures"',
-      '[percy] Error: failure'
-    ]);
+    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+      'Could not take DOM snapshot "Snapshot 1"'
+    ]));
 
     browser.assert.ok(true);
   }
