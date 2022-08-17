@@ -434,6 +434,11 @@
     "@types/node" "*"
     "@types/responselike" "*"
 
+"@types/chai@*":
+  version "4.3.3"
+  resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.3.3.tgz#3c90752792660c4b562ad73b3fbd68bf3bc7ae07"
+  integrity sha512-hC7OMnszpxhZPduX+m+nrx+uFoLkWOMiR4oa/AZF3MuSETYTZmFfJAHqZEM8MVlvfG7BEUcgvtwoCTxBp6hm3g==
+
 "@types/eslint@^7.2.13":
   version "7.28.1"
   resolved "https://registry.yarnpkg.com/@types/eslint/-/eslint-7.28.1.tgz#50b07747f1f84c2ba8cd394cf0fe0ba07afce320"
@@ -494,11 +499,13 @@
   integrity sha512-fZQQafSREFyuZcdWFAExYjBiCL7AUCdgsk80iO0q4yihYYdcIiH28CcuPTGFgLOCC8RlW49GSQxdHwZP+I7CNg==
 
 "@types/nightwatch@^2.0.0":
-  version "2.0.7"
-  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.0.7.tgz#850552a93d7a6425cdf5fa917d02757d049c734b"
-  integrity sha512-2sRSUhoEjtPFs+eZbgrBNWy+XvD+Z3rZwzTyUkhAeTVxAAKpbyCciueUVsoBN7Izx4JYirVnw4nHHD+1j+IGIA==
+  version "2.3.3"
+  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.3.3.tgz#90ad44c5d48ae9c262261baaa2f9cebb4f33b666"
+  integrity sha512-qxcv0PW3oFQ65LoHID05DiP2QLHHhB7lG5p6p2r95zMAnX/f2jfzGJ7n5ZlFaPF2hv7NMahZLiGeUqqyaQd3HA==
   dependencies:
+    "@types/chai" "*"
     "@types/selenium-webdriver" "*"
+    devtools-protocol "^0.0.1025565"
 
 "@types/node@*":
   version "14.14.6"
@@ -1171,6 +1178,11 @@ define-properties@^1.1.3:
   integrity sha512-3MqfYKj2lLzdMSf8ZIZE/V+Zuy+BgD6f164e8K2w7dgnpKArBDerGYpM46IYYcjnkdPNMjPk9A6VFB8+3SKlXQ==
   dependencies:
     object-keys "^1.0.12"
+
+devtools-protocol@^0.0.1025565:
+  version "0.0.1025565"
+  resolved "https://registry.yarnpkg.com/devtools-protocol/-/devtools-protocol-0.0.1025565.tgz#0b3da0d3714c556aad06b0ec60f4fde68a701a90"
+  integrity sha512-0s5sbGQR/EfYQhd8EpZgphpndsv+CufTlaeUyA6vYXCA0H5kMAsHCS/cHtUFWoKJCO125hpoKicQCfpxRj4oqw==
 
 didyoumean@1.2.2:
   version "1.2.2"
