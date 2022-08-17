@@ -14,12 +14,7 @@ module.exports = {
   test_settings: {
     default: {
       desiredCapabilities: {
-        browserName: 'firefox',
-        alwaysMatch: {
-          'moz:firefoxOptions': {
-            args: ['-headless']
-          }
-        }
+        browserName: 'firefox'
       }
     }
   }
