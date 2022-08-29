@@ -499,9 +499,9 @@
   integrity sha512-fZQQafSREFyuZcdWFAExYjBiCL7AUCdgsk80iO0q4yihYYdcIiH28CcuPTGFgLOCC8RlW49GSQxdHwZP+I7CNg==
 
 "@types/nightwatch@^2.0.0":
-  version "2.3.3"
-  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.3.3.tgz#90ad44c5d48ae9c262261baaa2f9cebb4f33b666"
-  integrity sha512-qxcv0PW3oFQ65LoHID05DiP2QLHHhB7lG5p6p2r95zMAnX/f2jfzGJ7n5ZlFaPF2hv7NMahZLiGeUqqyaQd3HA==
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.3.5.tgz#0826884199325ab1b08fa4562f83e7f52dc32589"
+  integrity sha512-BcayZPpccRK85sKzZae5htO/P40A4LzsOiynAYBfIsdMQ/3JRZXUlTZYYPHBTto0MsxHVEvlADLEIrSzhyKysA==
   dependencies:
     "@types/chai" "*"
     "@types/selenium-webdriver" "*"
