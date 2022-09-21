@@ -14,8 +14,8 @@ module.exports = {
       .percySnapshot()
       .percySnapshot('Snapshot 2');
 
-    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
-      'Percy is not running, disabling snapshots'
+    expect(helpers.logger.stdout).toEqual(expect.arrayContaining([
+      '[percy] Percy is not running, disabling snapshots'
     ]));
 
     await browser
@@ -48,8 +48,8 @@ module.exports = {
       .navigateTo(helpers.testSnapshotURL)
       .percySnapshot('Snapshot 1');
 
-    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
-      'Could not take DOM snapshot "Snapshot 1"'
+    expect(helpers.logger.stderr).toEqual(expect.arrayContaining([
+      '[percy] Could not take DOM snapshot "Snapshot 1"'
     ]));
 
     await browser
