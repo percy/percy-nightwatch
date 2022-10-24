@@ -198,6 +198,11 @@
     lodash "^4.17.19"
     to-fast-properties "^2.0.0"
 
+"@colors/colors@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@colors/colors/-/colors-1.5.0.tgz#bb504579c1cae923e6576a4f5da43d25f97bdbd9"
+  integrity sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==
+
 "@eslint/eslintrc@^0.4.3":
   version "0.4.3"
   resolved "https://registry.yarnpkg.com/@eslint/eslintrc/-/eslintrc-0.4.3.tgz#9e42981ef035beb3dd49add17acb96e8ff6f394c"
@@ -993,6 +998,15 @@ cli-spinners@^2.5.0:
   version "2.6.1"
   resolved "https://registry.yarnpkg.com/cli-spinners/-/cli-spinners-2.6.1.tgz#adc954ebe281c37a6319bfa401e6dd2488ffb70d"
   integrity sha512-x/5fWmGMnbKQAaNwN+UZlV79qBLM9JFnJuJ03gIi5whrob0xV0ofNVHy9DhwGdsMJQc2OKv0oGmLzvaqvAVv+g==
+
+cli-table3@^0.6.3:
+  version "0.6.3"
+  resolved "https://registry.yarnpkg.com/cli-table3/-/cli-table3-0.6.3.tgz#61ab765aac156b52f222954ffc607a6f01dbeeb2"
+  integrity sha512-w5Jac5SykAeZJKntOxJCrm63Eg5/4dhMWIcuTbo9rpE+brgaSZo0RuNJZeOyMgsUdhDeojvgyQLmjI+K50ZGyg==
+  dependencies:
+    string-width "^4.2.0"
+  optionalDependencies:
+    "@colors/colors" "1.5.0"
 
 cliui@^6.0.0:
   version "6.0.0"
@@ -2865,9 +2879,9 @@ nightwatch-axe-verbose@2.0.3:
     axe-core "^4.4.3"
 
 nightwatch@^2.3.0:
-  version "2.3.9"
-  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.3.9.tgz#3d3153d57a005e49689e5904d73a23b6bfb2c863"
-  integrity sha512-yjcri3URaV7bKCbTXJK0k7heBZ9OOGpuPdur4hQAxoODx/XuKVV53rtc7a/W4MZ39GhzepHKJCtelvrEu6nJeQ==
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.4.1.tgz#185f03c01d426916f4d034d01188739bd17f06aa"
+  integrity sha512-p/7dUbN2WFDIht+4JyDLlIa61soXH2ND6svc6H2SlaGCavaxxjMAtLhORwnIj/8TKY6EDJtPfdqIEsLFTJZVPg==
   dependencies:
     "@nightwatch/chai" "5.0.2"
     ansi-to-html "0.7.2"
@@ -2875,6 +2889,7 @@ nightwatch@^2.3.0:
     boxen "5.1.2"
     chai-nightwatch "0.5.3"
     ci-info "3.3.0"
+    cli-table3 "^0.6.3"
     didyoumean "1.2.2"
     dotenv "10.0.0"
     ejs "3.1.8"
