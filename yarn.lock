@@ -2879,9 +2879,9 @@ nightwatch-axe-verbose@2.0.3:
     axe-core "^4.4.3"
 
 nightwatch@^2.3.0:
-  version "2.4.1"
-  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.4.1.tgz#185f03c01d426916f4d034d01188739bd17f06aa"
-  integrity sha512-p/7dUbN2WFDIht+4JyDLlIa61soXH2ND6svc6H2SlaGCavaxxjMAtLhORwnIj/8TKY6EDJtPfdqIEsLFTJZVPg==
+  version "2.4.2"
+  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.4.2.tgz#50700bce2a6eddc32d5e36693743c0d27e717190"
+  integrity sha512-3kDVPT3Na/4yRA2q+/zSTwYUijTmsn+5L4AaqDebWbv1kGHVzv84AFxNIf4hGaCIB79AyhiFnkSj3L065OZZ7w==
   dependencies:
     "@nightwatch/chai" "5.0.2"
     ansi-to-html "0.7.2"
