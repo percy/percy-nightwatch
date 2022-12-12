@@ -513,9 +513,9 @@
   integrity sha512-fZQQafSREFyuZcdWFAExYjBiCL7AUCdgsk80iO0q4yihYYdcIiH28CcuPTGFgLOCC8RlW49GSQxdHwZP+I7CNg==
 
 "@types/nightwatch@^2.0.0":
-  version "2.3.12"
-  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.3.12.tgz#9d778b7786e326d09980a1836578b99e3c2925cc"
-  integrity sha512-u28EeijYAnPkt+dRQ+i8qD1+KmujFpPQ+WKrnTIwzcivP8R/jF6DoQndtXX5lZLbm+a7kyKGbPjDrYRLg1tqsQ==
+  version "2.3.15"
+  resolved "https://registry.yarnpkg.com/@types/nightwatch/-/nightwatch-2.3.15.tgz#805befaae7c58a62715d69d0b0dfdb43c21bc68a"
+  integrity sha512-yIxEv8kfxookZMZUMVbcMqCF00ACTzIWxQq2eOZxZ8v802z28vSCqdNXjQiCzjkZtGK3pg3phOVqiv8RWzHrFw==
   dependencies:
     "@types/chai" "*"
     "@types/selenium-webdriver" "*"
@@ -2879,9 +2879,9 @@ nightwatch-axe-verbose@2.0.3:
     axe-core "^4.4.3"
 
 nightwatch@^2.3.0:
-  version "2.4.1"
-  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.4.1.tgz#185f03c01d426916f4d034d01188739bd17f06aa"
-  integrity sha512-p/7dUbN2WFDIht+4JyDLlIa61soXH2ND6svc6H2SlaGCavaxxjMAtLhORwnIj/8TKY6EDJtPfdqIEsLFTJZVPg==
+  version "2.5.4"
+  resolved "https://registry.yarnpkg.com/nightwatch/-/nightwatch-2.5.4.tgz#c6bb3a02ec1a2de8c12cfb71a4d52bfb8a702467"
+  integrity sha512-mlPyVDP5hmRuTl3W2HnHfM7jv23V4Pcl15QNkz5+EJUUtxmBqwYG742jvYRkN6f2XBg5L1gwco2+rDmnRuL58Q==
   dependencies:
     "@nightwatch/chai" "5.0.2"
     ansi-to-html "0.7.2"
@@ -2907,10 +2907,11 @@ nightwatch@^2.3.0:
     nightwatch-axe-verbose "2.0.3"
     open "8.4.0"
     ora "5.4.1"
-    selenium-webdriver "4.3.1"
+    selenium-webdriver "4.6.1"
     semver "7.3.5"
     stacktrace-parser "0.1.10"
     strip-ansi "6.0.1"
+    untildify "^4.0.0"
     uuid "8.3.2"
 
 node-preload@^0.2.1:
@@ -3454,10 +3455,10 @@ safe-buffer@~5.1.0, safe-buffer@~5.1.1:
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.1.2.tgz#991ec69d296e0313747d59bdfd2b745c35f8828d"
   integrity sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==
 
-selenium-webdriver@4.3.1:
-  version "4.3.1"
-  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.3.1.tgz#5e9c6c4adee65e57776b5bd4c07c59b65b8f056d"
-  integrity sha512-TjH/ls1WKRQoFEHcqtn6UtwcLnA3yvx08v9cSSFYvyhp8hJWRtbe9ae2I8uXPisEZ2EaGKKoxBZ4EHv0BJM15g==
+selenium-webdriver@4.6.1:
+  version "4.6.1"
+  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.6.1.tgz#ac66867206542a40c24b5a44f4ccbae992e962dc"
+  integrity sha512-FT8Dw0tbzaTp8YYLuwhaCnve/nw03HKrOJrA3aUmTKmxaIFSP4kT2R5fN3K0RpV5kbR0ZnM4FGVI2vANBvekaA==
   dependencies:
     jszip "^3.10.0"
     tmp "^0.2.1"
@@ -3862,6 +3863,11 @@ universalify@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/universalify/-/universalify-2.0.0.tgz#75a4984efedc4b08975c5aeb73f530d02df25717"
   integrity sha512-hAZsKq7Yy11Zu1DE0OzWjw7nnLZmJZYTDZZyEFHZdUhV8FkH5MCfoU1XMaxXovpyW5nq5scPqq0ZDP9Zyl04oQ==
+
+untildify@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/untildify/-/untildify-4.0.0.tgz#2bc947b953652487e4600949fb091e3ae8cd919b"
+  integrity sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==
 
 uri-js@^4.2.2:
   version "4.4.0"
