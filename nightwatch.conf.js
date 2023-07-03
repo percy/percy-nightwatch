@@ -1,4 +1,3 @@
-const geckodriver = require('geckodriver');
 const percy = require('.');
 
 module.exports = {
@@ -7,8 +6,7 @@ module.exports = {
   custom_commands_path: [percy.path],
 
   webdriver: {
-    start_process: true,
-    server_path: geckodriver.path
+    start_process: true
   },
 
   test_settings: {
