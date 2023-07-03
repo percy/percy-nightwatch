@@ -436,9 +436,9 @@
   integrity sha512-Vk6VWhD32nuoYMBYxIRb8fjK7dTVD3nOwTK+0OAsB5sjcbelBTNLoU+6r2iESBRSA9fmvsmwLJ7xP7V3AgLj2g==
 
 "@percy/sdk-utils@^1.0.0":
-  version "1.16.0"
-  resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.16.0.tgz#d5076d83701e9dad9383283877e63f433165d051"
-  integrity sha512-/nPyK4NCjFGYNVQ7vOivfuEYveOJhA4gWzB7w2PjCkw/Y3kCtu+axRpUiDPEybTz2H6RTvr+I526DbtUYguqVw==
+  version "1.26.1"
+  resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.26.1.tgz#09c792bdb45e0be144fe15405c684f5f0e1e1966"
+  integrity sha512-DrPaC/EfBjw6rMvMa3bkZhiQxJIIXqWhEwo0jnzlsR74FNeKRiCQwpx9/H1exN4LFYos7pwLd3e4ga8nPK/hqA==
 
 "@tootallnate/once@2":
   version "2.0.0"
