@@ -62,7 +62,7 @@ export interface PercyNightwatchExports {
 }
 
 declare const percyNightwatch: PercyNightwatchExports;
-export = percyNightwatch;
+export default percyNightwatch;
 
 declare module 'nightwatch' {
   interface NightwatchCustomCommands {
