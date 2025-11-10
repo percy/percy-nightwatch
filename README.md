@@ -129,6 +129,48 @@ Additional scripts are available when iterating locally:
 - `yarn test:unit` &mdash; runs the mocha suite under `test/unit/**`.
 - `yarn test:nightwatch` &mdash; runs the Nightwatch suite (wrapped by `percy exec`) in headless Firefox.
 
+### E2E Visual Testing
+
+The repository includes comprehensive end-to-end (E2E) visual regression tests that create actual Percy builds and validate all SDK features. These tests use real HTML fixtures and test scenarios to ensure the SDK works correctly.
+
+**Running E2E tests locally:**
+
+```sh
+# Terminal 1 - Start test server
+yarn e2e:server
+
+# Terminal 2 - Run tests with Percy
+PERCY_TOKEN=your_token yarn e2e:chrome    # Chrome (with CDP)
+PERCY_TOKEN=your_token yarn e2e:firefox   # Firefox (WebDriver)
+
+# Or run everything in one command
+PERCY_TOKEN=your_token yarn e2e:local
+```
+
+**What's tested:**
+- ✅ Responsive snapshots with multiple widths (CDP + WebDriver fallbacks)
+- ✅ Lazy loading with scroll helper
+- ✅ Canvas and stylesheet serialization
+- ✅ Region algorithms (ignore, standard, layout, intelliignore)
+- ✅ Percy CSS, scope selectors, and DOM transformation
+- ✅ Cookie capture and attachment
+- ✅ Shadow DOM serialization
+- ✅ Complex real-world integration scenarios
+
+**E2E test structure:**
+- `test/e2e/fixtures/` - 7 comprehensive HTML test pages
+- `test/e2e/e2e.test.js` - 13 optimized test scenarios covering all features
+- `test/e2e/server.js` - Static file server for fixtures
+- `test/e2e/nightwatch.e2e.conf.js` - E2E-specific configuration
+
+**Snapshot count:**
+- PRs: ~25-30 snapshots (Chrome only, optimized for quick review)
+- Main branch: ~75-90 snapshots (Chrome + Firefox + environment tests)
+
+See [`test/e2e/README.md`](test/e2e/README.md) for detailed documentation, environment variables, and troubleshooting.
+
+**CI/CD:** E2E tests run automatically on pull requests (Chrome) and main branch pushes (Chrome + Firefox) via GitHub Actions (`.github/workflows/e2e-percy.yml`).
+
 ## Upgrading
 
 ### Automatically with `@percy/migrate`

@@ -50,9 +50,11 @@ describe('snapshot helpers', () => {
         html: '<html></html>',
         cookies: [{ name: 'session', value: '123' }]
       });
+      // Options should be converted to snake_case for PercyDOM.serialize()
       expect(browser.lastArgs).toMatchObject({
-        ignoreCanvasSerializationErrors: false,
-        ignoreStyleSheetSerializationErrors: false
+        enable_javascript: false,
+        ignore_canvas_serialization_errors: false,
+        ignore_style_sheet_serialization_errors: false
       });
     });
   });

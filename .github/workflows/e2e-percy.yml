@@ -1,0 +1,189 @@
+name: E2E Percy Visual Testing
+
+on:
+  pull_request:
+    branches: ['**']
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-visual-test:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20]
+        # Chrome for PRs, Chrome + Firefox for main branch
+        browser: ${{ github.event_name == 'pull_request' && fromJSON('["chrome"]') || fromJSON('["chrome", "firefox"]') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Start E2E test server
+        run: |
+          node test/e2e/server.js &
+          echo $! > server.pid
+          echo "🚀 E2E server started with PID $(cat server.pid)"
+
+      - name: Wait for server to be ready
+        run: |
+          echo "⏳ Waiting for server at http://localhost:8080/health..."
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Server not ready yet..."
+            sleep 2
+          done
+          echo "❌ Server failed to start"
+          exit 1
+
+      - name: Run Percy E2E Tests
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_BRANCH: ${{ github.head_ref || github.ref_name }}
+          PERCY_TARGET_BRANCH: ${{ github.base_ref || 'main' }}
+          PERCY_PARALLEL_TOTAL: -1
+          BROWSER: ${{ matrix.browser }}
+          CI: true
+        run: |
+          echo "🎨 Running Percy E2E tests with ${{ matrix.browser }}..."
+          yarn percy exec -- nightwatch -c test/e2e/nightwatch.e2e.conf.js
+
+      - name: Capture Percy build info
+        if: always()
+        run: |
+          echo "### 🎨 Percy Build Info - ${{ matrix.browser }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.head_ref || github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Browser:** ${{ matrix.browser }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Node:** ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check Percy dashboard for visual diffs and build status." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Nightwatch logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: nightwatch-logs-${{ matrix.browser }}
+          path: test/e2e/reports/
+          retention-days: 7
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: screenshots-${{ matrix.browser }}
+          path: test/e2e/screenshots/
+          retention-days: 7
+
+      - name: Stop E2E test server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            PID=$(cat server.pid)
+            echo "🛑 Stopping server with PID $PID..."
+            kill $PID || true
+            rm server.pid
+          fi
+
+  e2e-environment-toggles:
+    name: E2E Environment Tests
+    runs-on: ubuntu-latest
+    # Only run on main/master branch pushes, not on PRs to reduce snapshot count
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20]
+        # Reduced to just one critical env test scenario
+        test-scenario:
+          - name: 'CDP Disabled'
+            env:
+              PERCY_DISABLE_CDP_RESIZE: 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Start E2E test server
+        run: |
+          node test/e2e/server.js &
+          echo $! > server.pid
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Run Percy E2E Tests with ${{ matrix.test-scenario.name }}
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_BRANCH: ${{ github.head_ref || github.ref_name }}-${{ matrix.test-scenario.name }}
+          PERCY_TARGET_BRANCH: ${{ github.base_ref || 'main' }}
+          BROWSER: chrome
+          CI: true
+        run: |
+          echo "🧪 Testing with environment: ${{ matrix.test-scenario.name }}"
+          export ${{ join(matrix.test-scenario.env, ' ') }}
+          yarn percy exec -- nightwatch -c test/e2e/nightwatch.e2e.conf.js
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
