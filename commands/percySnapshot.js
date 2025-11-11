@@ -53,15 +53,17 @@ module.exports = class PercySnapshotCommand {
         ...snapshotOptions
       } = options;
 
-      // Post the DOM to the snapshot endpoint with snapshot options and other info
-      await utils.postSnapshot({
+      const postData = {
         ...snapshotOptions,
         domSnapshot,
         environmentInfo: ENV_INFO,
         clientInfo: CLIENT_INFO,
         name,
         url
-      });
+      };
+
+      // Post the DOM to the snapshot endpoint with snapshot options and other info
+      await utils.postSnapshot(postData);
     } catch (error) {
       // Handle errors
       log.error(`Could not take DOM snapshot "${name}"`);

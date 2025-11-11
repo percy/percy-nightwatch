@@ -26,13 +26,7 @@
     "test:unit": "mocha \"test/unit/**/*.test.js\"",
     "test:nightwatch": "cross-env MOZ_HEADLESS=1 percy exec --testing -- nightwatch",
     "test:coverage": "nyc yarn test:unit",
-    "test:types": "tsd",
-    "e2e:server": "node test/e2e/server.js",
-    "e2e:test": "nightwatch -c test/e2e/nightwatch.e2e.conf.js",
-    "e2e:percy": "percy exec -- yarn e2e:test",
-    "e2e:chrome": "cross-env BROWSER=chrome yarn e2e:percy",
-    "e2e:firefox": "cross-env BROWSER=firefox yarn e2e:percy",
-    "e2e:local": "node test/e2e/server.js & yarn e2e:percy ; kill $!"
+    "test:types": "tsd"
   },
   "dependencies": {
     "@percy/sdk-utils": "^1.31.4",

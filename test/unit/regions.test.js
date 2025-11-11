@@ -34,4 +34,15 @@ describe('createRegion', () => {
   it('throws when an invalid algorithm is provided', () => {
     expect(() => createRegion({ algorithm: 'unknown' })).toThrow('Invalid algorithm');
   });
+
+  it('does not include elementSelector when no selectors are provided', () => {
+    const region = createRegion({
+      algorithm: 'standard'
+    });
+
+    expect(region).toMatchObject({
+      algorithm: 'standard'
+    });
+    expect(region).not.toHaveProperty('elementSelector');
+  });
 });

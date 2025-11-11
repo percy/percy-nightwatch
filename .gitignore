@@ -7,3 +7,4 @@ test/e2e/screenshots/
 test/e2e/server.log
 *.pid
 server.pid
+test/e2e/*
