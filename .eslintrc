@@ -1,4 +1,6 @@
 extends: standard
+env:
+  node: true
 rules:
   prefer-const: off
   no-unused-expressions: off
@@ -9,3 +11,10 @@ rules:
     - anonymous: never
       asyncArrow: always
       named: never
+overrides:
+  - files:
+      - "test/**/*.test.js"
+    env:
+      mocha: true
+    rules:
+      node/no-callback-literal: off

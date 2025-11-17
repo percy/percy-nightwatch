@@ -1,7 +1,7 @@
 const percy = require('.');
 
 module.exports = {
-  src_folders: ['test'],
+  src_folders: ['test/nightwatch'],
   output_folder: false,
   custom_commands_path: [percy.path],
 

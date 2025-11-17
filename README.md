@@ -34,17 +34,11 @@ guides](https://nightwatchjs.org/guide/using-nightwatch/writing-tests.html).
 
 ```javascript
 module.exports = {
-  'Snapshots pages': function(browser) {
-    browser
-      .url('http://example.com')
-      .assert.containsText('h1', 'Example Domain')
-      .percySnapshot('Example snapshot');
-    browser
-      .url('http://google.com')
-      .assert.elementPresent('img[alt="Google"]')
-      .percySnapshot('Google homepage');
+  "Snapshots pages": function (browser) {
+    browser.url("http://example.com").assert.containsText("h1", "Example Domain").percySnapshot("Example snapshot");
+    browser.url("http://google.com").assert.elementPresent('img[alt="Google"]').percySnapshot("Google homepage");
     browser.end();
-  }
+  },
 };
 ```
 
@@ -101,6 +95,82 @@ OK. 2 assertions passed.
 - `name` - The snapshot name; must be unique to each snapshot
 - `options` - [See per-snapshot configuration options](https://www.browserstack.com/docs/percy/take-percy-snapshots/overview#per-snapshot-configuration)
 
+### Responsive snapshots
+
+Set `responsiveSnapshotCapture: true` (and optionally `widths`) to have the Nightwatch SDK resize the browser window and capture DOM snapshots at multiple breakpoints in a single Percy snapshot. The SDK implementation:
+
+- Calling `PercyDOM.waitForResize()` once and waiting on `window.resizeCount` before each snapshot.
+- Using Chrome DevTools Protocol resizing when available (disable with `PERCY_DISABLE_CDP_RESIZE=true`) and falling back to WebDriver window APIs.
+- Honoring the environment toggles:
+  - `PERCY_RESPONSIVE_CAPTURE_MIN_HEIGHT` â€“ ensure a minimum viewport height using `snapshot.minHeight`.
+  - `PERCY_RESPONSIVE_CAPTURE_RELOAD_PAGE` â€“ reload the page (and re-inject Percy DOM) between widths.
+  - `RESPONSIVE_CAPTURE_SLEEP_TIME` â€“ wait (in seconds) between width changes.
+  - `PERCY_ENABLE_LAZY_LOADING_SCROLL` â€“ trigger the lazy-load scroll helper described below.
+- Resetting the window back to its original dimensions after the final width.
+
+### Lazy-loading scroll helper
+
+When `PERCY_ENABLE_LAZY_LOADING_SCROLL` is set the SDK scrolls the page in increments (up to 25,000px) to trigger lazy-loaded content before each snapshot. Additional environment variables control the behavior:
+
+- `PERCY_LAZY_LOAD_SCROLL_TIME` â€“ seconds to pause between scroll steps (default `0.45`).
+- `BYPASS_SCROLL_TO_TOP=true` â€“ skip scrolling back to the top of the page.
+- `PERCY_SLEEP_AFTER_LAZY_LOAD_COMPLETE` â€“ seconds to wait after finishing the scroll sequence.
+
+### Running tests
+
+All unit and Nightwatch integration tests can be executed with:
+
+```sh
+yarn test
+```
+
+Additional scripts are available when iterating locally:
+
+- `yarn test:unit` &mdash; runs the mocha suite under `test/unit/**`.
+- `yarn test:nightwatch` &mdash; runs the Nightwatch suite (wrapped by `percy exec`) in headless Firefox.
+
+### E2E Visual Testing
+
+The repository includes comprehensive end-to-end (E2E) visual regression tests that create actual Percy builds and validate all SDK features. These tests use real HTML fixtures and test scenarios to ensure the SDK works correctly.
+
+**Running E2E tests locally:**
+
+```sh
+# Terminal 1 - Start test server
+yarn e2e:server
+
+# Terminal 2 - Run tests with Percy
+PERCY_TOKEN=your_token yarn e2e:chrome    # Chrome (with CDP)
+PERCY_TOKEN=your_token yarn e2e:firefox   # Firefox (WebDriver)
+
+# Or run everything in one command
+PERCY_TOKEN=your_token yarn e2e:local
+```
+
+**What's tested:**
+- ✅ Responsive snapshots with multiple widths (CDP + WebDriver fallbacks)
+- ✅ Lazy loading with scroll helper
+- ✅ Canvas and stylesheet serialization
+- ✅ Region algorithms (ignore, standard, layout, intelliignore)
+- ✅ Percy CSS, scope selectors, and DOM transformation
+- ✅ Cookie capture and attachment
+- ✅ Shadow DOM serialization
+- ✅ Complex real-world integration scenarios
+
+**E2E test structure:**
+- `test/e2e/fixtures/` - 7 comprehensive HTML test pages
+- `test/e2e/e2e.test.js` - 13 optimized test scenarios covering all features
+- `test/e2e/server.js` - Static file server for fixtures
+- `test/e2e/nightwatch.e2e.conf.js` - E2E-specific configuration
+
+**Snapshot count:**
+- PRs: ~25-30 snapshots (Chrome only, optimized for quick review)
+- Main branch: ~75-90 snapshots (Chrome + Firefox + environment tests)
+
+See [`test/e2e/README.md`](test/e2e/README.md) for detailed documentation, environment variables, and troubleshooting.
+
+**CI/CD:** E2E tests run automatically on pull requests (Chrome) and main branch pushes (Chrome + Firefox) via GitHub Actions (`.github/workflows/e2e-percy.yml`).
+
 ## Upgrading
 
 ### Automatically with `@percy/migrate`
@@ -108,7 +178,7 @@ OK. 2 assertions passed.
 We built a tool to help automate migrating to the new CLI toolchain! Migrating
 can be done by running the following commands and following the prompts:
 
-``` shell
+```shell
 $ npx @percy/migrate
 ? Are you currently using @percy/nightwatch? Yes
 ? Install @percy/cli (required to run percy)? Yes

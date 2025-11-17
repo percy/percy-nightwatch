@@ -2,3 +2,9 @@ node_modules
 geckodriver.log
 .nyc_output
 logs/
+test/e2e/reports/
+test/e2e/screenshots/
+test/e2e/server.log
+*.pid
+server.pid
+test/e2e/*
