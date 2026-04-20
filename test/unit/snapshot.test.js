@@ -168,25 +168,28 @@ describe('snapshot helpers', () => {
                   { src: 'https://cross.example.com', srcdoc: null, percyElementId: 'percy-123', index: 0 }
                 ]
               });
+            } else if (source.includes('querySelector')) {
+              // Return an element reference for frame switching by data-percy-element-id
+              cb({ value: { __elementRef: true } });
             } else {
               cb({ value: null });
             }
-          } else if (currentFrame === 'iframe-0') {
+          } else if (currentFrame === 'iframe-ref') {
             if (typeof fn === 'string') {
               // PercyDOM injection
               cb({ value: null });
             } else if (source.includes('PercyDOM.serialize')) {
-              cb({ value: { html: '<html>iframe content</html>', resources: [] } });
+              cb({ value: { snapshot: { html: '<html>iframe content</html>', resources: [] }, frameUrl: 'https://cross.example.com' } });
             } else {
               cb({ value: null });
             }
           }
         },
-        frame(indexOrNull, cb) {
-          if (indexOrNull === null) {
+        frame(refOrNull, cb) {
+          if (refOrNull === null) {
             currentFrame = 'main';
           } else {
-            currentFrame = `iframe-${indexOrNull}`;
+            currentFrame = 'iframe-ref';
           }
           cb({ value: null });
         },
@@ -302,8 +305,8 @@ describe('snapshot helpers', () => {
     });
 
     it('handles frame processing errors gracefully', async () => {
-      const debugMessages = [];
-      const log = { debug: (msg) => debugMessages.push(msg) };
+      const warnMessages = [];
+      const log = { debug: () => {}, warn: (msg) => warnMessages.push(msg) };
       let currentFrame = 'main';
       const browser = {
         execute(fn, args, cb) {
@@ -317,6 +320,8 @@ describe('snapshot helpers', () => {
                   { src: 'https://cross.example.com', srcdoc: null, percyElementId: 'percy-789', index: 0 }
                 ]
               });
+            } else if (source.includes('querySelector')) {
+              cb({ value: { __elementRef: true } });
             } else {
               cb({ value: null });
             }
@@ -325,11 +330,11 @@ describe('snapshot helpers', () => {
             throw new Error('Frame is detached');
           }
         },
-        frame(indexOrNull, cb) {
-          if (indexOrNull === null) {
+        frame(refOrNull, cb) {
+          if (refOrNull === null) {
             currentFrame = 'main';
           } else {
-            currentFrame = `iframe-${indexOrNull}`;
+            currentFrame = 'iframe-ref';
           }
           cb({ value: null });
         },
@@ -343,7 +348,7 @@ describe('snapshot helpers', () => {
 
       // Should not crash, should not have corsIframes
       expect(result.domSnapshot.corsIframes).toBeUndefined();
-      expect(debugMessages).toEqual(
+      expect(warnMessages).toEqual(
         expect.arrayContaining([
           expect.stringContaining('Failed to process cross-origin iframe')
         ])
