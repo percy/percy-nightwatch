@@ -160,21 +160,25 @@ describe('snapshot helpers', () => {
     // the recursion can be tested without a real browser.
     function buildFrameTreeBrowser(frames) {
       const stack = ['main'];
+      // Closure-bound reader so callers (including Object.assign-copied
+      // overrides) always observe the live frame stack rather than a snapshot
+      // that happens to be `'main'` at construction time.
+      const getCurrentFrame = () => stack[stack.length - 1];
       const findById = (frameName, percyId) =>
         (frames[frameName].iframes || []).find(f => f.percyElementId === percyId);
       const childKey = (frameName, percyId) => {
         const child = findById(frameName, percyId);
         return child ? child.frame : null;
       };
-      return {
-        get currentFrame() { return stack[stack.length - 1]; },
+      const browser = {
         execute(fn, args, cb) {
           const source = typeof fn === 'string' ? fn : fn.toString();
-          const frame = frames[this.currentFrame] || {};
+          const current = getCurrentFrame();
+          const frame = frames[current] || {};
           // PercyDOM script injection: string source
           if (typeof fn === 'string') return cb({ value: null });
           // Top-level page serialization (returns { domSnapshot, url })
-          if (this.currentFrame === 'main' && source.includes('domSnapshot:')) {
+          if (current === 'main' && source.includes('domSnapshot:')) {
             return cb({ value: { domSnapshot: frame.domSnapshot || { html: frame.html || '' }, url: frame.url } });
           }
           // Frame serialization (returns { snapshot, frameUrl })
@@ -191,14 +195,13 @@ describe('snapshot helpers', () => {
           // by the child frame name so frame() can navigate to it.
           if (source.includes('querySelector')) {
             const percyId = args[0];
-            const target = childKey(this.currentFrame, percyId);
+            const target = childKey(current, percyId);
             return cb({ value: target ? { __frame: target } : null });
           }
           cb({ value: null });
         },
         frame(target, cb) {
           if (target === null) {
-            // switch to top
             stack.length = 0;
             stack.push('main');
           } else if (target && target.__frame) {
@@ -214,6 +217,12 @@ describe('snapshot helpers', () => {
         },
         getCookies(cb) { cb({ value: [] }); }
       };
+      Object.defineProperty(browser, 'currentFrame', {
+        get: getCurrentFrame,
+        enumerable: false,
+        configurable: true
+      });
+      return browser;
     }
 
     it('captures cross-origin iframes and attaches corsIframes', async () => {
@@ -277,6 +286,96 @@ describe('snapshot helpers', () => {
         'http://localhost:3003/inner',
         'http://localhost:3004/deepest'
       ]);
+    });
+
+    it('breaks out of a cyclic iframe graph instead of recursing to MAX_FRAME_DEPTH', async () => {
+      // host -> a -> b -> a (cycle). Without cycle detection we would recurse
+      // 10 times and emit 10 entries; with detection we capture each unique
+      // frame once and stop at the cyclic edge.
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [{ src: 'http://localhost:3002/a', percyElementId: 'p-a', frame: 'a' }]
+        },
+        a: {
+          url: 'http://localhost:3002/a',
+          snapshot: { html: '<html>a</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3003/b', percyElementId: 'p-b', frame: 'b' }]
+        },
+        b: {
+          url: 'http://localhost:3003/b',
+          snapshot: { html: '<html>b</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3002/a', percyElementId: 'p-a-cycle', frame: 'a' }]
+        }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};');
+
+      expect(result.domSnapshot.corsIframes).toHaveLength(2);
+      expect(result.domSnapshot.corsIframes.map(f => f.frameUrl)).toEqual([
+        'http://localhost:3002/a',
+        'http://localhost:3003/b'
+      ]);
+    });
+
+    it('aborts further sibling capture when parentFrame restoration fails mid-recursion', async () => {
+      const debugMessages = [];
+      const warnings = [];
+      const log = { debug: (m) => debugMessages.push(m), warn: (m) => warnings.push(m) };
+      const base = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [
+            { src: 'http://localhost:3002/x', percyElementId: 'p-x', frame: 'x' },
+            { src: 'http://localhost:3004/sibling', percyElementId: 'p-sib', frame: 'sib' }
+          ]
+        },
+        x: {
+          url: 'http://localhost:3002/x',
+          snapshot: { html: '<html>x</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3003/inner', percyElementId: 'p-inner', frame: 'inner' }]
+        },
+        inner: {
+          url: 'http://localhost:3003/inner',
+          snapshot: { html: '<html>inner</html>', resources: [] },
+          iframes: []
+        },
+        sib: {
+          url: 'http://localhost:3004/sibling',
+          snapshot: { html: '<html>sib</html>', resources: [] }
+        }
+      });
+      // Make frameParent throw when called from inside the inner frame
+      // (depth 2 unwind). This should propagate percyContextLost up and
+      // cause captureCorsIframes to skip the sibling 'sib'.
+      const browser = Object.assign({}, base, {
+        frameParent(cb) {
+          if (base.currentFrame === 'inner') {
+            return cb({ status: 1, error: new Error('frameParent unsupported') });
+          }
+          if (base.currentFrame === 'main') {
+            return cb({ value: null });
+          }
+          base.frameParent(cb);
+        }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};', log);
+
+      // We should have captured x and inner, then aborted before sib.
+      expect(result.domSnapshot.corsIframes.map(f => f.frameUrl)).toEqual([
+        'http://localhost:3002/x',
+        'http://localhost:3003/inner'
+      ]);
+      expect(warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Aborting further nested CORS capture due to lost frame context')
+        ])
+      );
     });
 
     it('skips same-origin descendants of a cross-origin frame (already inlined by PercyDOM)', async () => {
