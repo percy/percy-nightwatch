@@ -154,49 +154,82 @@ describe('snapshot helpers', () => {
   });
 
   describe('captureSerializedDOM with CORS iframes', () => {
-    it('captures cross-origin iframes and attaches corsIframes', async () => {
-      let currentFrame = 'main';
-      const browser = {
+    // Builds a stub browser that simulates a frame tree. `frames` is a map of
+    // frame-name -> { url, iframes: [{ src, percyElementId }], snapshot }.
+    // The active frame is tracked across frame()/frameParent() calls so that
+    // the recursion can be tested without a real browser.
+    function buildFrameTreeBrowser(frames) {
+      const stack = ['main'];
+      const findById = (frameName, percyId) =>
+        (frames[frameName].iframes || []).find(f => f.percyElementId === percyId);
+      const childKey = (frameName, percyId) => {
+        const child = findById(frameName, percyId);
+        return child ? child.frame : null;
+      };
+      return {
+        get currentFrame() { return stack[stack.length - 1]; },
         execute(fn, args, cb) {
-          const source = fn.toString();
-          if (currentFrame === 'main') {
-            if (source.includes('PercyDOM.serialize')) {
-              cb({ value: { domSnapshot: { html: '<html><iframe src="https://cross.example.com"></iframe></html>' }, url: 'http://localhost:8000' } });
-            } else if (source.includes('querySelectorAll')) {
-              cb({
-                value: [
-                  { src: 'https://cross.example.com', srcdoc: null, percyElementId: 'percy-123', index: 0 }
-                ]
-              });
-            } else if (source.includes('querySelector')) {
-              // Return an element reference for frame switching by data-percy-element-id
-              cb({ value: { __elementRef: true } });
-            } else {
-              cb({ value: null });
-            }
-          } else if (currentFrame === 'iframe-ref') {
-            if (typeof fn === 'string') {
-              // PercyDOM injection
-              cb({ value: null });
-            } else if (source.includes('PercyDOM.serialize')) {
-              cb({ value: { snapshot: { html: '<html>iframe content</html>', resources: [] }, frameUrl: 'https://cross.example.com' } });
-            } else {
-              cb({ value: null });
-            }
+          const source = typeof fn === 'string' ? fn : fn.toString();
+          const frame = frames[this.currentFrame] || {};
+          // PercyDOM script injection: string source
+          if (typeof fn === 'string') return cb({ value: null });
+          // Top-level page serialization (returns { domSnapshot, url })
+          if (this.currentFrame === 'main' && source.includes('domSnapshot:')) {
+            return cb({ value: { domSnapshot: frame.domSnapshot || { html: frame.html || '' }, url: frame.url } });
           }
-        },
-        frame(refOrNull, cb) {
-          if (refOrNull === null) {
-            currentFrame = 'main';
-          } else {
-            currentFrame = 'iframe-ref';
+          // Frame serialization (returns { snapshot, frameUrl })
+          if (source.includes('PercyDOM.serialize')) {
+            return cb({ value: { snapshot: frame.snapshot || { html: frame.html || '', resources: [] }, frameUrl: frame.url } });
+          }
+          // Iframe enumeration in current frame
+          if (source.includes('querySelectorAll')) {
+            return cb({ value: (frame.iframes || []).map((f, i) => ({
+              src: f.src, srcdoc: f.srcdoc || null, percyElementId: f.percyElementId, index: i
+            })) });
+          }
+          // Single iframe lookup by percy-element-id — return a sentinel keyed
+          // by the child frame name so frame() can navigate to it.
+          if (source.includes('querySelector')) {
+            const percyId = args[0];
+            const target = childKey(this.currentFrame, percyId);
+            return cb({ value: target ? { __frame: target } : null });
           }
           cb({ value: null });
         },
-        getCookies(cb) {
-          cb({ value: [] });
-        }
+        frame(target, cb) {
+          if (target === null) {
+            // switch to top
+            stack.length = 0;
+            stack.push('main');
+          } else if (target && target.__frame) {
+            stack.push(target.__frame);
+          } else if (typeof target === 'number') {
+            stack.push(`iframe-${target}`);
+          }
+          cb({ value: null });
+        },
+        frameParent(cb) {
+          if (stack.length > 1) stack.pop();
+          cb({ value: null });
+        },
+        getCookies(cb) { cb({ value: [] }); }
       };
+    }
+
+    it('captures cross-origin iframes and attaches corsIframes', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:8000',
+          domSnapshot: { html: '<html><iframe src="https://cross.example.com"></iframe></html>' },
+          iframes: [
+            { src: 'https://cross.example.com', percyElementId: 'percy-123', frame: 'cross1' }
+          ]
+        },
+        cross1: {
+          url: 'https://cross.example.com',
+          snapshot: { html: '<html>iframe content</html>', resources: [] }
+        }
+      });
 
       const utils = { percy: { config: { snapshot: {} } } };
       const domScript = 'window.PercyDOM = {};';
@@ -209,6 +242,62 @@ describe('snapshot helpers', () => {
         iframeData: { percyElementId: 'percy-123' },
         iframeSnapshot: { html: '<html>iframe content</html>', resources: [] }
       });
+    });
+
+    it('captures nested cross-origin iframes up to the depth cap', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [{ src: 'http://localhost:3002/outer', percyElementId: 'p-outer', frame: 'outer' }]
+        },
+        outer: {
+          url: 'http://localhost:3002/outer',
+          snapshot: { html: '<html>outer</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3003/inner', percyElementId: 'p-inner', frame: 'inner' }]
+        },
+        inner: {
+          url: 'http://localhost:3003/inner',
+          snapshot: { html: '<html>inner</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3004/deepest', percyElementId: 'p-deepest', frame: 'deepest' }]
+        },
+        deepest: {
+          url: 'http://localhost:3004/deepest',
+          snapshot: { html: '<html>deepest</html>', resources: [] },
+          iframes: []
+        }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};');
+
+      expect(result.domSnapshot.corsIframes).toHaveLength(3);
+      expect(result.domSnapshot.corsIframes.map(f => f.frameUrl)).toEqual([
+        'http://localhost:3002/outer',
+        'http://localhost:3003/inner',
+        'http://localhost:3004/deepest'
+      ]);
+    });
+
+    it('skips same-origin descendants of a cross-origin frame (already inlined by PercyDOM)', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:8000',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [{ src: 'https://outer.example.com/page', percyElementId: 'p-outer', frame: 'outer' }]
+        },
+        outer: {
+          url: 'https://outer.example.com/page',
+          snapshot: { html: '<html>outer</html>', resources: [] },
+          iframes: [{ src: 'https://outer.example.com/inner', percyElementId: 'p-same', frame: 'same' }]
+        }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};');
+
+      expect(result.domSnapshot.corsIframes).toHaveLength(1);
+      expect(result.domSnapshot.corsIframes[0].frameUrl).toBe('https://outer.example.com/page');
     });
 
     it('does not add corsIframes when no cross-origin iframes exist', async () => {
@@ -305,50 +394,35 @@ describe('snapshot helpers', () => {
     });
 
     it('handles frame processing errors gracefully', async () => {
-      const warnMessages = [];
-      const log = { debug: () => {}, warn: (msg) => warnMessages.push(msg) };
-      let currentFrame = 'main';
-      const browser = {
+      const warnings = [];
+      const log = { debug: () => {}, warn: (msg) => warnings.push(msg) };
+      const base = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:8000',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [{ src: 'https://cross.example.com', percyElementId: 'percy-789', frame: 'cross1' }]
+        },
+        cross1: {
+          url: 'https://cross.example.com',
+          snapshot: { html: '<html></html>', resources: [] }
+        }
+      });
+      // Simulate a detached frame: any execute() call after switching into the
+      // child frame throws synchronously, mirroring a WebDriver protocol error.
+      const browser = Object.assign({}, base, {
         execute(fn, args, cb) {
-          const source = fn.toString();
-          if (currentFrame === 'main') {
-            if (source.includes('PercyDOM.serialize')) {
-              cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://localhost:8000' } });
-            } else if (source.includes('querySelectorAll')) {
-              cb({
-                value: [
-                  { src: 'https://cross.example.com', srcdoc: null, percyElementId: 'percy-789', index: 0 }
-                ]
-              });
-            } else if (source.includes('querySelector')) {
-              cb({ value: { __elementRef: true } });
-            } else {
-              cb({ value: null });
-            }
-          } else {
-            // Simulate error inside iframe
+          if (base.currentFrame === 'cross1') {
             throw new Error('Frame is detached');
           }
-        },
-        frame(refOrNull, cb) {
-          if (refOrNull === null) {
-            currentFrame = 'main';
-          } else {
-            currentFrame = 'iframe-ref';
-          }
-          cb({ value: null });
-        },
-        getCookies(cb) {
-          cb({ value: [] });
+          base.execute(fn, args, cb);
         }
-      };
+      });
 
       const utils = { percy: { config: { snapshot: {} } } };
       const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};', log);
 
-      // Should not crash, should not have corsIframes
       expect(result.domSnapshot.corsIframes).toBeUndefined();
-      expect(warnMessages).toEqual(
+      expect(warnings).toEqual(
         expect.arrayContaining([
           expect.stringContaining('Failed to process cross-origin iframe')
         ])
