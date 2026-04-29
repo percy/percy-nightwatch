@@ -6,7 +6,8 @@ const {
   captureSerializedDOM,
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
-  slowScrollToBottom
+  slowScrollToBottom,
+  waitForReady
 } = require('../../lib/snapshot');
 
 describe('snapshot helpers', () => {
@@ -109,6 +110,85 @@ describe('snapshot helpers', () => {
       await slowScrollToBottom(browser);
 
       expect(browser.scrollCalls).toEqual([450, 900, 'top']);
+    });
+  });
+
+  describe('waitForReady (PER-7348)', () => {
+    function makeBrowser({ asyncResult, throwError } = {}) {
+      return {
+        capturedScript: null,
+        capturedArgs: null,
+        executeAsync(fn, args, cb) {
+          this.capturedScript = fn.toString();
+          this.capturedArgs = args;
+          if (throwError) throw throwError;
+          cb({ value: asyncResult });
+        }
+      };
+    }
+
+    it('returns diagnostics when the CLI exposes waitForReady', async () => {
+      const diagnostics = { timed_out: false, duration_ms: 12 };
+      const browser = makeBrowser({ asyncResult: diagnostics });
+
+      const result = await waitForReady(browser, {}, { percy: { config: {} } });
+
+      expect(result).toEqual(diagnostics);
+      // The injected script must use executeAsync semantics (done callback)
+      expect(browser.capturedScript).toContain('arguments[arguments.length - 1]');
+      expect(browser.capturedScript).toContain('PercyDOM.waitForReady');
+      expect(browser.capturedArgs).toEqual([{}]);
+    });
+
+    it('passes per-snapshot readiness config through to the browser', async () => {
+      const browser = makeBrowser({ asyncResult: undefined });
+      const config = { preset: 'strict', stabilityWindowMs: 500 };
+
+      await waitForReady(browser, { readiness: config }, { percy: { config: {} } });
+
+      expect(browser.capturedArgs).toEqual([config]);
+    });
+
+    it('falls back to .percy.yml readiness config when no per-snapshot value is given', async () => {
+      const browser = makeBrowser({ asyncResult: undefined });
+      const utils = {
+        percy: { config: { snapshot: { readiness: { preset: 'fast' } } } }
+      };
+
+      await waitForReady(browser, {}, utils);
+
+      expect(browser.capturedArgs).toEqual([{ preset: 'fast' }]);
+    });
+
+    it('skips waitForReady entirely when preset is disabled', async () => {
+      const browser = makeBrowser({ asyncResult: { should: 'not see this' } });
+
+      const result = await waitForReady(
+        browser,
+        { readiness: { preset: 'disabled' } },
+        { percy: { config: {} } }
+      );
+
+      expect(result).toBe(undefined);
+      expect(browser.capturedScript).toBe(null);
+    });
+
+    it('returns undefined and does not throw when executeAsync fails', async () => {
+      const browser = makeBrowser({ throwError: new Error('selenium boom') });
+      const log = { debugCalls: [], debug(...args) { this.debugCalls.push(args); } };
+
+      const result = await waitForReady(browser, {}, { percy: { config: {} } }, log);
+
+      expect(result).toBe(undefined);
+      expect(log.debugCalls.length).toBe(1);
+    });
+
+    it('resolves with undefined when neither executeAsync nor executeAsyncScript exists', async () => {
+      const browser = {}; // no execute methods at all
+
+      const result = await waitForReady(browser, {}, { percy: { config: {} } });
+
+      expect(result).toBe(undefined);
     });
   });
 });

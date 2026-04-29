@@ -1,7 +1,7 @@
 // Collect client and environment information
 const sdkPkg = require('../package.json');
 const nightwatchPkg = require('nightwatch/package.json');
-const { captureDOM } = require('../lib/snapshot');
+const { captureDOM, waitForReady } = require('../lib/snapshot');
 const { createRegion } = require('../lib/regions');
 const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${nightwatchPkg.name}/${nightwatchPkg.version}`;
@@ -43,8 +43,16 @@ module.exports = class PercySnapshotCommand {
       // Inject the DOM serialization script
       await injectPercyDOM(this.api, domScript);
 
+      // Readiness gate — runs before serialize when CLI supports it (PER-7348).
+      const readinessDiagnostics = await waitForReady(this.api, options, utils, log);
+
       // Serialize and capture the DOM
       let { domSnapshot, url } = await captureDOM(this.api, options, utils, log, domScript);
+
+      // Attach readiness diagnostics so the CLI can log timing and pass/fail
+      if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object' && !Array.isArray(domSnapshot)) {
+        domSnapshot.readiness_diagnostics = readinessDiagnostics;
+      }
 
       // Filter out DOM-only serialization options that shouldn't be posted to Percy
       const {
