@@ -188,7 +188,12 @@ describe('snapshot helpers', () => {
           // Iframe enumeration in current frame
           if (source.includes('querySelectorAll')) {
             return cb({ value: (frame.iframes || []).map((f, i) => ({
-              src: f.src, srcdoc: f.srcdoc || null, percyElementId: f.percyElementId, index: i
+              src: f.src,
+              srcdoc: f.srcdoc || null,
+              percyElementId: f.percyElementId,
+              dataPercyIgnore: !!f.dataPercyIgnore,
+              matchesIgnoreSelector: !!f.matchesIgnoreSelector,
+              index: i
             })) });
           }
           // Single iframe lookup by percy-element-id — return a sentinel keyed
@@ -251,6 +256,82 @@ describe('snapshot helpers', () => {
         iframeData: { percyElementId: 'percy-123' },
         iframeSnapshot: { html: '<html>iframe content</html>', resources: [] }
       });
+    });
+
+    it('honors options.maxIframeDepth to limit recursion', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [{ src: 'http://localhost:3002/a', percyElementId: 'p-a', frame: 'a' }]
+        },
+        a: {
+          url: 'http://localhost:3002/a',
+          snapshot: { html: '<html>a</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3003/b', percyElementId: 'p-b', frame: 'b' }]
+        },
+        b: {
+          url: 'http://localhost:3003/b',
+          snapshot: { html: '<html>b</html>', resources: [] },
+          iframes: [{ src: 'http://localhost:3004/c', percyElementId: 'p-c', frame: 'c' }]
+        },
+        c: {
+          url: 'http://localhost:3004/c',
+          snapshot: { html: '<html>c</html>', resources: [] }
+        }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, { maxIframeDepth: 2 }, utils, 'window.PercyDOM = {};');
+
+      // Cap at 2 -> capture a (depth 1) and b (depth 2). c (depth 3) is skipped.
+      expect(result.domSnapshot.corsIframes).toHaveLength(2);
+      expect(result.domSnapshot.corsIframes.map(f => f.frameUrl)).toEqual([
+        'http://localhost:3002/a',
+        'http://localhost:3003/b'
+      ]);
+    });
+
+    it('skips iframes with data-percy-ignore attribute', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [
+            { src: 'http://localhost:3002/keep', percyElementId: 'p-keep', frame: 'keep' },
+            { src: 'http://localhost:3003/drop', percyElementId: 'p-drop', frame: 'drop', dataPercyIgnore: true }
+          ]
+        },
+        keep: { url: 'http://localhost:3002/keep', snapshot: { html: '<html>keep</html>', resources: [] } },
+        drop: { url: 'http://localhost:3003/drop', snapshot: { html: '<html>drop</html>', resources: [] } }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};');
+
+      expect(result.domSnapshot.corsIframes).toHaveLength(1);
+      expect(result.domSnapshot.corsIframes[0].frameUrl).toBe('http://localhost:3002/keep');
+    });
+
+    it('honors options.ignoreIframeSelectors via the matchesIgnoreSelector signal', async () => {
+      const browser = buildFrameTreeBrowser({
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [
+            { src: 'http://localhost:3002/keep', percyElementId: 'p-keep', frame: 'keep' },
+            { src: 'http://localhost:3004/ad', percyElementId: 'p-ad', frame: 'ad', matchesIgnoreSelector: true }
+          ]
+        },
+        keep: { url: 'http://localhost:3002/keep', snapshot: { html: '<html>keep</html>', resources: [] } },
+        ad: { url: 'http://localhost:3004/ad', snapshot: { html: '<html>ad</html>', resources: [] } }
+      });
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, { ignoreIframeSelectors: ['.ad'] }, utils, 'window.PercyDOM = {};');
+
+      expect(result.domSnapshot.corsIframes).toHaveLength(1);
+      expect(result.domSnapshot.corsIframes[0].frameUrl).toBe('http://localhost:3002/keep');
     });
 
     it('captures nested cross-origin iframes up to the depth cap', async () => {
