@@ -187,14 +187,16 @@ describe('snapshot helpers', () => {
           }
           // Iframe enumeration in current frame
           if (source.includes('querySelectorAll')) {
-            return cb({ value: (frame.iframes || []).map((f, i) => ({
-              src: f.src,
-              srcdoc: f.srcdoc || null,
-              percyElementId: f.percyElementId,
-              dataPercyIgnore: !!f.dataPercyIgnore,
-              matchesIgnoreSelector: !!f.matchesIgnoreSelector,
-              index: i
-            })) });
+            return cb({
+              value: (frame.iframes || []).map((f, i) => ({
+                src: f.src,
+                srcdoc: f.srcdoc || null,
+                percyElementId: f.percyElementId,
+                dataPercyIgnore: !!f.dataPercyIgnore,
+                matchesIgnoreSelector: !!f.matchesIgnoreSelector,
+                index: i
+              }))
+            });
           }
           // Single iframe lookup by percy-element-id — return a sentinel keyed
           // by the child frame name so frame() can navigate to it.
