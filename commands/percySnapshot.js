@@ -44,8 +44,7 @@ module.exports = class PercySnapshotCommand {
       await injectPercyDOM(this.api, domScript);
 
       // Serialize and capture the DOM
-      const configOptions = utils.percy?.config?.snapshot || {};
-      const mergedOptions = { ...configOptions, ...options };
+      const mergedOptions = utils.mergeSnapshotOptions(options);
       let { domSnapshot, url } = await captureDOM(this.api, mergedOptions, utils, log, domScript);
 
       // Filter out DOM-only serialization options that shouldn't be posted to Percy
