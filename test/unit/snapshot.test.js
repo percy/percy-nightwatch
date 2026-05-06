@@ -4,12 +4,18 @@ const expect = typeof expectModule === 'function'
   : expectModule.default || expectModule.expect;
 const {
   captureSerializedDOM,
+  setSnapshotContext,
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
   isUnsupportedIframeSrc,
   getOrigin
 } = require('../../lib/snapshot');
+
+// Pin a fake domScript + a no-op log at module scope before any
+// captureSerializedDOM call. The lib/snapshot module-scope state replaces
+// what used to be threaded through args.
+setSnapshotContext('window.PercyDOM = {};', { debug: () => {}, info: () => {}, warn: () => {} });
 
 describe('snapshot helpers', () => {
   describe('ignoreCanvasSerializationErrors', () => {
@@ -609,22 +615,6 @@ describe('snapshot helpers', () => {
           expect.stringContaining('Failed to process cross-origin iframe')
         ])
       );
-    });
-
-    it('does not capture CORS iframes when domScript is not provided', async () => {
-      const browser = {
-        execute(fn, args, cb) {
-          cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://localhost:8000' } });
-        },
-        getCookies(cb) {
-          cb({ value: [] });
-        }
-      };
-
-      const utils = { percy: { config: { snapshot: {} } } };
-      const result = await captureSerializedDOM(browser, {}, utils);
-
-      expect(result.domSnapshot.corsIframes).toBeUndefined();
     });
   });
 });
