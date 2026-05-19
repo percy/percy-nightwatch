@@ -7,7 +7,8 @@ const {
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
-  waitForReady
+  waitForReady,
+  __test__: { browserWaitForReady }
 } = require('../../lib/snapshot');
 
 describe('snapshot helpers', () => {
@@ -183,12 +184,90 @@ describe('snapshot helpers', () => {
       expect(log.debugCalls.length).toBe(1);
     });
 
+    it('logs the raw error when executeAsync throws a non-Error', async () => {
+      // Covers the `error?.message || error` second branch in the catch:
+      // the rejection value has no `.message`, so the log line falls through
+      // to stringifying the error itself.
+      const browser = makeBrowser({ throwError: 'plain-string-rejection' });
+      const log = { debugCalls: [], debug(...args) { this.debugCalls.push(args); } };
+
+      const result = await waitForReady(browser, {}, { percy: { config: {} } }, log);
+
+      expect(result).toBe(undefined);
+      expect(log.debugCalls.length).toBe(1);
+      expect(log.debugCalls[0][0]).toContain('plain-string-rejection');
+    });
+
     it('resolves with undefined when neither executeAsync nor executeAsyncScript exists', async () => {
       const browser = {}; // no execute methods at all
 
       const result = await waitForReady(browser, {}, { percy: { config: {} } });
 
       expect(result).toBe(undefined);
+    });
+  });
+
+  // Unit tests for the in-browser readiness invoker. Runs in Node against a
+  // stubbed `PercyDOM` global so the typeof-guard + try/catch branches get
+  // real statement/branch coverage instead of being suppressed.
+  describe('browserWaitForReady', () => {
+    afterEach(() => {
+      delete globalThis.PercyDOM;
+    });
+
+    it('invokes done with no args when PercyDOM is undefined', () => {
+      let received = 'sentinel';
+      const done = (...args) => { received = args; };
+      browserWaitForReady({ preset: 'balanced' }, done);
+      expect(received).toEqual([]);
+    });
+
+    it('invokes done with no args when PercyDOM lacks waitForReady', () => {
+      globalThis.PercyDOM = {};
+      let received = 'sentinel';
+      const done = (...args) => { received = args; };
+      browserWaitForReady({ preset: 'balanced' }, done);
+      expect(received).toEqual([]);
+    });
+
+    it('invokes done with diagnostics when PercyDOM.waitForReady resolves', async () => {
+      const diagnostics = { passed: true, preset: 'strict' };
+      let receivedConfig;
+      globalThis.PercyDOM = {
+        waitForReady(cfg) { receivedConfig = cfg; return Promise.resolve(diagnostics); }
+      };
+      let received = 'sentinel';
+      const done = (...args) => { received = args; };
+
+      browserWaitForReady({ preset: 'strict' }, done);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(receivedConfig).toEqual({ preset: 'strict' });
+      expect(received).toEqual([diagnostics]);
+    });
+
+    it('invokes done with no args when PercyDOM.waitForReady rejects', async () => {
+      globalThis.PercyDOM = {
+        waitForReady() { return Promise.reject(new Error('boom')); }
+      };
+      let received = 'sentinel';
+      const done = (...args) => { received = args; };
+
+      browserWaitForReady({ preset: 'balanced' }, done);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(received).toEqual([]);
+    });
+
+    it('invokes done with no args when PercyDOM.waitForReady throws synchronously', () => {
+      globalThis.PercyDOM = {
+        waitForReady() { throw new Error('sync boom'); }
+      };
+      let received = 'sentinel';
+      const done = (...args) => { received = args; };
+
+      browserWaitForReady({ preset: 'balanced' }, done);
+      expect(received).toEqual([]);
     });
   });
 });
