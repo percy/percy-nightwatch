@@ -7,8 +7,7 @@ const {
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
-  waitForReady,
-  __test__: { browserWaitForReady }
+  waitForReady
 } = require('../../lib/snapshot');
 
 describe('snapshot helpers', () => {
@@ -120,7 +119,7 @@ describe('snapshot helpers', () => {
         capturedScript: null,
         capturedArgs: null,
         executeAsync(fn, args, cb) {
-          this.capturedScript = fn.toString();
+          this.capturedScript = fn;
           this.capturedArgs = args;
           if (throwError) throw throwError;
           cb({ value: asyncResult });
@@ -128,37 +127,63 @@ describe('snapshot helpers', () => {
       };
     }
 
+    // Minimal sdk-utils stub. The real helpers live in @percy/sdk-utils; we
+    // exercise the contract here (string emission, callback-mode shape, JSON
+    // inlining) without pulling in the package — keeps these unit tests fast.
+    function makeUtils({ globalReadiness } = {}) {
+      return {
+        percy: { config: { snapshot: globalReadiness ? { readiness: globalReadiness } : {} } },
+        waitForReadyScript: (cfg, opts) => {
+          const config = JSON.stringify(cfg);
+          if (opts?.callback) {
+            return `var done = arguments[arguments.length - 1];
+              try {
+                if (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function') {
+                  PercyDOM.waitForReady(${config}).then(function(r) { done(r); }).catch(function() { done(); });
+                } else { done(); }
+              } catch(e) { done(); }`;
+          }
+          return `PercyDOM.waitForReady(${config})`;
+        },
+        isReadinessDisabled: (options) => {
+          const merged = { ...(globalReadiness || {}), ...(options?.readiness || {}) };
+          return merged.preset === 'disabled';
+        },
+        getReadinessConfig: (options) =>
+          ({ ...(globalReadiness || {}), ...(options?.readiness || {}) })
+      };
+    }
+
     it('returns diagnostics when the CLI exposes waitForReady', async () => {
       const diagnostics = { timed_out: false, duration_ms: 12 };
       const browser = makeBrowser({ asyncResult: diagnostics });
 
-      const result = await waitForReady(browser, {}, { percy: { config: {} } });
+      const result = await waitForReady(browser, {}, makeUtils());
 
       expect(result).toEqual(diagnostics);
-      // The injected script must use executeAsync semantics (done callback)
+      expect(typeof browser.capturedScript).toBe('string');
       expect(browser.capturedScript).toContain('arguments[arguments.length - 1]');
       expect(browser.capturedScript).toContain('PercyDOM.waitForReady');
-      expect(browser.capturedArgs).toEqual([{}]);
+      // sdk-utils inlines the config in the script — no separate args needed.
+      expect(browser.capturedArgs).toEqual([]);
     });
 
-    it('passes per-snapshot readiness config through to the browser', async () => {
+    it('inlines per-snapshot readiness config as JSON into the script', async () => {
       const browser = makeBrowser({ asyncResult: undefined });
       const config = { preset: 'strict', stabilityWindowMs: 500 };
 
-      await waitForReady(browser, { readiness: config }, { percy: { config: {} } });
+      await waitForReady(browser, { readiness: config }, makeUtils());
 
-      expect(browser.capturedArgs).toEqual([config]);
+      expect(browser.capturedScript).toContain('"preset":"strict"');
+      expect(browser.capturedScript).toContain('"stabilityWindowMs":500');
     });
 
     it('falls back to .percy.yml readiness config when no per-snapshot value is given', async () => {
       const browser = makeBrowser({ asyncResult: undefined });
-      const utils = {
-        percy: { config: { snapshot: { readiness: { preset: 'fast' } } } }
-      };
 
-      await waitForReady(browser, {}, utils);
+      await waitForReady(browser, {}, makeUtils({ globalReadiness: { preset: 'fast' } }));
 
-      expect(browser.capturedArgs).toEqual([{ preset: 'fast' }]);
+      expect(browser.capturedScript).toContain('"preset":"fast"');
     });
 
     it('skips waitForReady entirely when preset is disabled', async () => {
@@ -167,8 +192,17 @@ describe('snapshot helpers', () => {
       const result = await waitForReady(
         browser,
         { readiness: { preset: 'disabled' } },
-        { percy: { config: {} } }
+        makeUtils()
       );
+
+      expect(result).toBe(undefined);
+      expect(browser.capturedScript).toBe(null);
+    });
+
+    it('is a silent no-op when sdk-utils lacks waitForReadyScript (older sdk-utils)', async () => {
+      const browser = makeBrowser({ asyncResult: { should: 'not see this' } });
+
+      const result = await waitForReady(browser, {}, { percy: { config: {} } });
 
       expect(result).toBe(undefined);
       expect(browser.capturedScript).toBe(null);
@@ -178,7 +212,7 @@ describe('snapshot helpers', () => {
       const browser = makeBrowser({ throwError: new Error('selenium boom') });
       const log = { debugCalls: [], debug(...args) { this.debugCalls.push(args); } };
 
-      const result = await waitForReady(browser, {}, { percy: { config: {} } }, log);
+      const result = await waitForReady(browser, {}, makeUtils(), log);
 
       expect(result).toBe(undefined);
       expect(log.debugCalls.length).toBe(1);
@@ -191,7 +225,7 @@ describe('snapshot helpers', () => {
       const browser = makeBrowser({ throwError: 'plain-string-rejection' });
       const log = { debugCalls: [], debug(...args) { this.debugCalls.push(args); } };
 
-      const result = await waitForReady(browser, {}, { percy: { config: {} } }, log);
+      const result = await waitForReady(browser, {}, makeUtils(), log);
 
       expect(result).toBe(undefined);
       expect(log.debugCalls.length).toBe(1);
@@ -201,73 +235,9 @@ describe('snapshot helpers', () => {
     it('resolves with undefined when neither executeAsync nor executeAsyncScript exists', async () => {
       const browser = {}; // no execute methods at all
 
-      const result = await waitForReady(browser, {}, { percy: { config: {} } });
+      const result = await waitForReady(browser, {}, makeUtils());
 
       expect(result).toBe(undefined);
-    });
-  });
-
-  // Unit tests for the in-browser readiness invoker. Runs in Node against a
-  // stubbed `PercyDOM` global so the typeof-guard + try/catch branches get
-  // real statement/branch coverage instead of being suppressed.
-  describe('browserWaitForReady', () => {
-    afterEach(() => {
-      delete globalThis.PercyDOM;
-    });
-
-    it('invokes done with no args when PercyDOM is undefined', () => {
-      let received = 'sentinel';
-      const done = (...args) => { received = args; };
-      browserWaitForReady({ preset: 'balanced' }, done);
-      expect(received).toEqual([]);
-    });
-
-    it('invokes done with no args when PercyDOM lacks waitForReady', () => {
-      globalThis.PercyDOM = {};
-      let received = 'sentinel';
-      const done = (...args) => { received = args; };
-      browserWaitForReady({ preset: 'balanced' }, done);
-      expect(received).toEqual([]);
-    });
-
-    it('invokes done with diagnostics when PercyDOM.waitForReady resolves', async () => {
-      const diagnostics = { passed: true, preset: 'strict' };
-      let receivedConfig;
-      globalThis.PercyDOM = {
-        waitForReady(cfg) { receivedConfig = cfg; return Promise.resolve(diagnostics); }
-      };
-      let received = 'sentinel';
-      const done = (...args) => { received = args; };
-
-      browserWaitForReady({ preset: 'strict' }, done);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(receivedConfig).toEqual({ preset: 'strict' });
-      expect(received).toEqual([diagnostics]);
-    });
-
-    it('invokes done with no args when PercyDOM.waitForReady rejects', async () => {
-      globalThis.PercyDOM = {
-        waitForReady() { return Promise.reject(new Error('boom')); }
-      };
-      let received = 'sentinel';
-      const done = (...args) => { received = args; };
-
-      browserWaitForReady({ preset: 'balanced' }, done);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(received).toEqual([]);
-    });
-
-    it('invokes done with no args when PercyDOM.waitForReady throws synchronously', () => {
-      globalThis.PercyDOM = {
-        waitForReady() { throw new Error('sync boom'); }
-      };
-      let received = 'sentinel';
-      const done = (...args) => { received = args; };
-
-      browserWaitForReady({ preset: 'balanced' }, done);
-      expect(received).toEqual([]);
     });
   });
 });
