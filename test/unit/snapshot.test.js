@@ -127,30 +127,34 @@ describe('snapshot helpers', () => {
       };
     }
 
-    // Minimal sdk-utils stub. The real helpers live in @percy/sdk-utils; we
-    // exercise the contract here (string emission, callback-mode shape, JSON
-    // inlining) without pulling in the package — keeps these unit tests fast.
+    // Minimal sdk-utils stub. The real helper lives in @percy/sdk-utils as
+    // runReadinessGate; we reimplement the contract here (shallow-merge,
+    // callback-mode script emission, try/catch) without pulling in the
+    // package — keeps these unit tests fast.
     function makeUtils({ globalReadiness } = {}) {
+      const mergedConfig = (options) =>
+        ({ ...(globalReadiness || {}), ...(options?.readiness || {}) });
       return {
         percy: { config: { snapshot: globalReadiness ? { readiness: globalReadiness } : {} } },
-        waitForReadyScript: (cfg, opts) => {
-          const config = JSON.stringify(cfg);
-          if (opts?.callback) {
-            return `var done = arguments[arguments.length - 1];
-              try {
-                if (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function') {
-                  PercyDOM.waitForReady(${config}).then(function(r) { done(r); }).catch(function() { done(); });
-                } else { done(); }
-              } catch(e) { done(); }`;
+        runReadinessGate: async (evalScript, options, { callback = false, log } = {}) => {
+          const config = mergedConfig(options);
+          if (config.preset === 'disabled') return null;
+          const configJson = JSON.stringify(config);
+          const script = callback
+            ? `var done = arguments[arguments.length - 1];
+                try {
+                  if (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function') {
+                    PercyDOM.waitForReady(${configJson}).then(function(r) { done(r); }).catch(function() { done(); });
+                  } else { done(); }
+                } catch(e) { done(); }`
+            : `PercyDOM.waitForReady(${configJson})`;
+          try {
+            return await evalScript(script);
+          } catch (err) {
+            log?.debug?.(`waitForReady failed, proceeding to serialize: ${err?.message || err}`);
+            return null;
           }
-          return `PercyDOM.waitForReady(${config})`;
-        },
-        isReadinessDisabled: (options) => {
-          const merged = { ...(globalReadiness || {}), ...(options?.readiness || {}) };
-          return merged.preset === 'disabled';
-        },
-        getReadinessConfig: (options) =>
-          ({ ...(globalReadiness || {}), ...(options?.readiness || {}) })
+        }
       };
     }
 
@@ -199,7 +203,7 @@ describe('snapshot helpers', () => {
       expect(browser.capturedScript).toBe(null);
     });
 
-    it('is a silent no-op when sdk-utils lacks waitForReadyScript (older sdk-utils)', async () => {
+    it('is a silent no-op when sdk-utils lacks runReadinessGate (older sdk-utils)', async () => {
       const browser = makeBrowser({ asyncResult: { should: 'not see this' } });
 
       const result = await waitForReady(browser, {}, { percy: { config: {} } });
