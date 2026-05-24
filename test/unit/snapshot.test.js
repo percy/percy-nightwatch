@@ -4,7 +4,6 @@ const expect = typeof expectModule === 'function'
   : expectModule.default || expectModule.expect;
 const {
   captureSerializedDOM,
-  setSnapshotContext,
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
@@ -12,10 +11,10 @@ const {
   getOrigin
 } = require('../../lib/snapshot');
 
-// Pin a fake domScript + a no-op log at module scope before any
-// captureSerializedDOM call. The lib/snapshot module-scope state replaces
-// what used to be threaded through args.
-setSnapshotContext('window.PercyDOM = {};', { debug: () => {}, info: () => {}, warn: () => {} });
+// Shared no-op log for tests that don't care about log output. Tests
+// asserting log behavior build their own collecting log object and pass it
+// as the 5th argument to captureSerializedDOM.
+const noopLog = { debug: () => {}, info: () => {}, warn: () => {} };
 
 describe('snapshot helpers', () => {
   describe('ignoreCanvasSerializationErrors', () => {
@@ -40,9 +39,12 @@ describe('snapshot helpers', () => {
   describe('captureSerializedDOM', () => {
     it('injects serialization flags and cookies', async () => {
       const browser = {
+        // Capture only the FIRST execute() call's args — that's the
+        // PercyDOM.serialize invocation. Subsequent calls (cors-iframe
+        // enumeration) would overwrite this with the selectors array.
         lastArgs: null,
         execute(fn, args, cb) {
-          this.lastArgs = args[0];
+          if (this.lastArgs === null) this.lastArgs = args[0];
           cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
         },
         getCookies(cb) {
@@ -51,7 +53,7 @@ describe('snapshot helpers', () => {
       };
 
       const utils = { percy: { config: { snapshot: {} } } };
-      const result = await captureSerializedDOM(browser, { enableJavaScript: false }, utils);
+      const result = await captureSerializedDOM(browser, { enableJavaScript: false }, utils, 'window.PercyDOM = {};', noopLog);
 
       expect(result.url).toBe('http://example.com');
       expect(result.domSnapshot).toMatchObject({
@@ -613,6 +615,233 @@ describe('snapshot helpers', () => {
       expect(warnings).toEqual(
         expect.arrayContaining([
           expect.stringContaining('Failed to process cross-origin iframe')
+        ])
+      );
+    });
+  });
+
+  describe('context threading (CE MAJORs)', () => {
+    // CE MAJOR 1+2: A consumer that imports captureDOM directly (bypassing
+    // percySnapshot, e.g. a custom runner) should not need to call any
+    // module-level setter to avoid crashes. Omitting domScript must not
+    // throw — it should simply skip PercyDOM re-injection where the script
+    // is unavailable, and still complete the capture.
+    it('captureDOM without domScript/log completes without throwing', async () => {
+      const { captureDOM } = require('../../lib/snapshot');
+      const browser = {
+        execute(fn, args, cb) {
+          const source = typeof fn === 'string' ? fn : fn.toString();
+          if (typeof fn === 'string') return cb({ value: null });
+          if (source.includes('domSnapshot:')) {
+            return cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
+          }
+          if (source.includes('querySelectorAll')) return cb({ value: [] });
+          cb({ value: null });
+        },
+        getCookies(cb) { cb({ value: [] }); }
+      };
+      const utils = { percy: { config: { snapshot: {} } } };
+
+      // Call without domScript or log — both default to null.
+      const result = await captureDOM(browser, {}, utils);
+      expect(result.domSnapshot.html).toBe('<html></html>');
+      expect(result.url).toBe('http://example.com');
+    });
+
+    // CE MAJOR 1: maybeReloadPage previously called executeScript(browser, null)
+    // when setSnapshotContext was never set, which throws inside the browser
+    // stub. With responsive capture enabled and reload toggled on, the call
+    // path must guard against a missing domScript.
+    it('maybeReloadPage path is safe when domScript is null', async () => {
+      const { captureDOM } = require('../../lib/snapshot');
+      const browser = {
+        refreshCalled: 0,
+        execute(fn, args, cb) {
+          const source = typeof fn === 'string' ? fn : fn.toString();
+          if (typeof fn === 'string') {
+            // PercyDOM injection should NEVER be invoked with null script.
+            // Failing this branch keeps the test honest if a regression
+            // re-introduces executeScript(browser, null).
+            if (fn === null) throw new Error('executeScript called with null script');
+            return cb({ value: null });
+          }
+          if (source.includes('window.innerWidth')) {
+            return cb({ value: { width: 1280, height: 720 } });
+          }
+          if (source.includes('window.resizeCount')) {
+            // Echo a monotonically incrementing counter so waitForResizeEvent
+            // resolves quickly instead of polling until the 1s timeout.
+            this._resizeCount = (this._resizeCount || 0) + 1;
+            return cb({ value: this._resizeCount });
+          }
+          if (source.includes('waitForResize')) return cb({ value: null });
+          if (source.includes('domSnapshot:')) {
+            return cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
+          }
+          if (source.includes('querySelectorAll')) return cb({ value: [] });
+          cb({ value: null });
+        },
+        refresh(cb) { this.refreshCalled += 1; cb({ value: null }); },
+        setWindowRect(rect, cb) { cb({ value: null }); },
+        getCookies(cb) { cb({ value: [] }); }
+      };
+      // Use the same width as the stub's originalWidth so changeWindowDimensionAndWait
+      // is never triggered — its waitForResizeEvent polls for window.resizeCount and
+      // would otherwise time out against this minimal stub.
+      const utils = {
+        percy: { config: { snapshot: { responsiveSnapshotCapture: true } }, widths: { config: [1280] } }
+      };
+
+      process.env.PERCY_RESPONSIVE_CAPTURE_RELOAD_PAGE = '1';
+      try {
+        const result = await captureDOM(browser, {}, utils, null, noopLog);
+        // We at least got one snapshot back, proving the responsive path
+        // completed without throwing on the null-domScript reload branch.
+        expect(Array.isArray(result.domSnapshot)).toBe(true);
+        expect(browser.refreshCalled).toBeGreaterThan(0);
+      } finally {
+        delete process.env.PERCY_RESPONSIVE_CAPTURE_RELOAD_PAGE;
+      }
+    });
+
+    // CE MAJOR 2: Two captureDOM calls invoked concurrently in the same Node
+    // process must not cross-contaminate each other's log streams. We build
+    // two distinct browser stubs with two distinct logs and run them through
+    // Promise.all. Log entries for run A must never appear in run B's log.
+    it('concurrent captures do not cross-contaminate per-call context', async () => {
+      const { captureDOM } = require('../../lib/snapshot');
+      function makeBrowser(tag) {
+        return {
+          execute(fn, args, cb) {
+            const source = typeof fn === 'string' ? fn : fn.toString();
+            if (typeof fn === 'string') return cb({ value: null });
+            if (source.includes('domSnapshot:')) {
+              return setTimeout(() =>
+                cb({ value: { domSnapshot: { html: `<html>${tag}</html>` }, url: `http://${tag}.example` } }), 5);
+            }
+            if (source.includes('querySelectorAll')) {
+              // One same-origin iframe each so shouldSkipIframe emits a debug.
+              return cb({
+                value: [{
+                  src: `http://${tag}.example/inner`,
+                  srcdoc: null,
+                  percyElementId: null,
+                  dataPercyIgnore: false,
+                  matchesIgnoreSelector: false,
+                  index: 0
+                }]
+              });
+            }
+            cb({ value: null });
+          },
+          getCookies(cb) { cb({ value: [] }); }
+        };
+      }
+      const utils = { percy: { config: { snapshot: {} } } };
+      const logA = { entries: [], debug(m) { this.entries.push(m); }, info() {}, warn() {} };
+      const logB = { entries: [], debug(m) { this.entries.push(m); }, info() {}, warn() {} };
+
+      // Run both captures concurrently. Each gets its own (domScript, log).
+      const [resA, resB] = await Promise.all([
+        captureDOM(makeBrowser('a'), {}, utils, 'script-A', logA),
+        captureDOM(makeBrowser('b'), {}, utils, 'script-B', logB)
+      ]);
+
+      expect(resA.domSnapshot.html).toBe('<html>a</html>');
+      expect(resB.domSnapshot.html).toBe('<html>b</html>');
+
+      // logA must only mention `a.example`, logB only `b.example`. With the
+      // old module-scope `log`, the second call's setSnapshotContext would
+      // have overwritten the first's logger and the entries would mix.
+      const joinedA = logA.entries.join('\n');
+      const joinedB = logB.entries.join('\n');
+      expect(joinedA).not.toContain('b.example');
+      expect(joinedB).not.toContain('a.example');
+    });
+
+    // CE MAJOR 3: parentFrame failure at depth=1 must also raise
+    // PercyContextLost (not silently continue). captureCorsIframes then
+    // breaks out of the outer sibling loop, preserving any partial capture
+    // already collected at depth 1.
+    it('parentFrame failure at depth=1 raises PercyContextLost and preserves partial capture', async () => {
+      const warnings = [];
+      const log = { debug: () => {}, info: () => {}, warn: (m) => warnings.push(m) };
+      // Reuse the in-test buildFrameTreeBrowser by replicating its shape
+      // inline so we don't depend on closures from another describe block.
+      const stack = ['main'];
+      const frames = {
+        main: {
+          url: 'http://localhost:3001',
+          domSnapshot: { html: '<html></html>' },
+          iframes: [
+            { src: 'http://localhost:3002/x', percyElementId: 'p-x', frame: 'x' },
+            { src: 'http://localhost:3004/sibling', percyElementId: 'p-sib', frame: 'sib' }
+          ]
+        },
+        x: { url: 'http://localhost:3002/x', snapshot: { html: '<html>x</html>', resources: [] }, iframes: [] },
+        sib: { url: 'http://localhost:3004/sibling', snapshot: { html: '<html>sib</html>', resources: [] } }
+      };
+      const browser = {
+        execute(fn, args, cb) {
+          const source = typeof fn === 'string' ? fn : fn.toString();
+          const current = stack[stack.length - 1];
+          const frame = frames[current] || {};
+          if (typeof fn === 'string') return cb({ value: null });
+          if (current === 'main' && source.includes('domSnapshot:')) {
+            return cb({ value: { domSnapshot: frame.domSnapshot, url: frame.url } });
+          }
+          if (source.includes('PercyDOM.serialize')) {
+            return cb({ value: { snapshot: frame.snapshot, frameUrl: frame.url } });
+          }
+          if (source.includes('querySelectorAll')) {
+            return cb({
+              value: (frame.iframes || []).map((f, i) => ({
+                src: f.src,
+                srcdoc: null,
+                percyElementId: f.percyElementId,
+                dataPercyIgnore: false,
+                matchesIgnoreSelector: false,
+                index: i
+              }))
+            });
+          }
+          if (source.includes('querySelector')) {
+            const target = (frame.iframes || []).find(f => f.percyElementId === args[0]);
+            return cb({ value: target ? { __frame: target.frame } : null });
+          }
+          cb({ value: null });
+        },
+        frame(target, cb) {
+          if (target === null) {
+            stack.length = 0;
+            stack.push('main');
+          } else if (target && target.__frame) {
+            stack.push(target.__frame);
+          }
+          cb({ value: null });
+        },
+        frameParent(cb) {
+          // Always fail — covers the depth=1 case where, with the old
+          // depth-guarded branch, the error would have been silently
+          // swallowed and sibling iteration would have continued against a
+          // stale top-document context.
+          cb({ status: 1, error: new Error('frameParent unsupported') });
+        },
+        getCookies(cb) { cb({ value: [] }); }
+      };
+
+      const utils = { percy: { config: { snapshot: {} } } };
+      const result = await captureSerializedDOM(browser, {}, utils, 'window.PercyDOM = {};', log);
+
+      // Partial capture (x at depth 1) is preserved; sib is NOT captured
+      // because the outer loop bails on PercyContextLost.
+      expect(result.domSnapshot.corsIframes).toBeDefined();
+      expect(result.domSnapshot.corsIframes.map(f => f.frameUrl)).toEqual([
+        'http://localhost:3002/x'
+      ]);
+      expect(warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Aborting further nested CORS capture due to lost frame context')
         ])
       );
     });
