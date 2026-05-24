@@ -1,7 +1,7 @@
 // Collect client and environment information
 const sdkPkg = require('../package.json');
 const nightwatchPkg = require('nightwatch/package.json');
-const { captureDOM, setSnapshotContext } = require('../lib/snapshot');
+const { captureDOM } = require('../lib/snapshot');
 const { createRegion } = require('../lib/regions');
 const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${nightwatchPkg.name}/${nightwatchPkg.version}`;
@@ -43,12 +43,10 @@ module.exports = class PercySnapshotCommand {
       // Inject the DOM serialization script
       await injectPercyDOM(this.api, domScript);
 
-      // Pin domScript + log at module scope inside lib/snapshot so internal
-      // helpers don't have to thread them through every call signature.
-      setSnapshotContext(domScript, log);
-
-      // Serialize and capture the DOM
-      let { domSnapshot, url } = await captureDOM(this.api, options, utils);
+      // Thread domScript + log through ctx so concurrent percySnapshot calls
+      // (parallel workers in the same Node process) don't race on shared
+      // module-level state.
+      let { domSnapshot, url } = await captureDOM(this.api, options, utils, domScript, log);
 
       // Filter out DOM-only serialization options that shouldn't be posted to Percy
       const {
