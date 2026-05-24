@@ -5,7 +5,8 @@ const utils = require('@percy/sdk-utils');
 
 const BROWSER_INTERNAL_PREFIXES = [
   'about:', 'chrome:', 'chrome-extension:', 'devtools:',
-  'edge:', 'opera:', 'view-source:', 'data:', 'javascript:', 'blob:'
+  'edge:', 'opera:', 'view-source:', 'data:', 'javascript:', 'blob:',
+  'vbscript:'
 ];
 
 function isUnsupportedIframeSrc(src) {
