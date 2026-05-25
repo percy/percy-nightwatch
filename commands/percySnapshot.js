@@ -43,7 +43,7 @@ module.exports = class PercySnapshotCommand {
       // Inject the DOM serialization script
       await injectPercyDOM(this.api, domScript);
 
-      // Readiness gate — runs before serialize when CLI supports it (PER-7348).
+      // Readiness gate — runs before serialize when CLI supports it.
       const readinessDiagnostics = await waitForReady(this.api, options, utils, log);
 
       // Serialize and capture the DOM

@@ -113,7 +113,7 @@ describe('snapshot helpers', () => {
     });
   });
 
-  describe('waitForReady (PER-7348)', () => {
+  describe('waitForReady', () => {
     function makeBrowser({ asyncResult, throwError } = {}) {
       return {
         capturedScript: null,
