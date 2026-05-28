@@ -139,6 +139,11 @@ describe('snapshot helpers', () => {
       expect(isUnsupportedIframeSrc('vbscript:msgbox')).toBe(true);
       expect(isUnsupportedIframeSrc('chrome://settings')).toBe(true);
       expect(isUnsupportedIframeSrc('chrome-extension://abc/page.html')).toBe(true);
+      expect(isUnsupportedIframeSrc('file:///etc/passwd')).toBe(true);
+      expect(isUnsupportedIframeSrc('FILE:///C:/Users')).toBe(true);
+      expect(isUnsupportedIframeSrc('ws://example.com/socket')).toBe(true);
+      expect(isUnsupportedIframeSrc('wss://example.com/socket')).toBe(true);
+      expect(isUnsupportedIframeSrc('ftp://example.com/file')).toBe(true);
     });
 
     it('returns false for valid http/https URLs', () => {
