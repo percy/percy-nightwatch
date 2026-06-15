@@ -61,8 +61,24 @@ module.exports = class PercySnapshotCommand {
         ...snapshotOptions
       } = options;
 
+      // Sanitize caller-supplied options before spreading them into the outbound
+      // POST body (CWE-284/CWE-1321 — PER-8722): drop prototype-pollution keys
+      // and code-bearing fields the SDK must never forward. clientInfo /
+      // environmentInfo are hard-coded AFTER the spread so callers can't override.
+      const BLOCKED_OPTION_KEYS = new Set([
+        '__proto__', 'constructor', 'prototype', 'execute', 'domTransformation'
+      ]);
+      const safeOptions = {};
+      for (const key of Object.keys(snapshotOptions)) {
+        if (BLOCKED_OPTION_KEYS.has(key)) {
+          log.debug?.(`Ignoring disallowed percySnapshot option: ${key}`);
+          continue;
+        }
+        safeOptions[key] = snapshotOptions[key];
+      }
+
       const postData = {
-        ...snapshotOptions,
+        ...safeOptions,
         domSnapshot,
         environmentInfo: ENV_INFO,
         clientInfo: CLIENT_INFO,
