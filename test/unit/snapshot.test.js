@@ -765,6 +765,53 @@ describe('snapshot helpers', () => {
       expect(joinedB).not.toContain('a.example');
     });
 
+    // Backward compatibility: captureDOM was published (v2.2.1-beta.0) with the
+    // trailing argument order (browser, options, utils, log, domScript). This
+    // branch reordered it to (..., domScript, log). An external caller pinned to
+    // the published order must keep working — captureDOM normalizes the pair by
+    // type (domScript is a string, log is an object), so both orders route the
+    // domScript to PercyDOM injection and the logger to logging.
+    it('captureDOM accepts the legacy (log, domScript) argument order', async () => {
+      const { captureDOM } = require('../../lib/snapshot');
+      function makeBrowser(injected) {
+        return {
+          execute(fn, args, cb) {
+            const source = typeof fn === 'string' ? fn : fn.toString();
+            if (typeof fn === 'string') {
+              // PercyDOM injection passes the script as a string. Record it so
+              // we can assert the script — not the logger — reached this branch.
+              injected.scripts.push(fn);
+              return cb({ value: null });
+            }
+            if (source.includes('domSnapshot:')) {
+              return cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
+            }
+            if (source.includes('querySelectorAll')) return cb({ value: [] });
+            cb({ value: null });
+          },
+          getCookies(cb) { cb({ value: [] }); }
+        };
+      }
+      const utils = { percy: { config: { snapshot: {} } } };
+      const log = { entries: [], debug(m) { this.entries.push(m); }, info() {}, warn() {} };
+      const domScript = 'window.PercyDOM = { fromLegacyOrder: true };';
+
+      // New order: (..., domScript, log)
+      const injectedNew = { scripts: [] };
+      const resNew = await captureDOM(makeBrowser(injectedNew), {}, utils, domScript, log);
+      // Legacy published order: (..., log, domScript)
+      const injectedOld = { scripts: [] };
+      const resOld = await captureDOM(makeBrowser(injectedOld), {}, utils, log, domScript);
+
+      expect(resNew.domSnapshot.html).toBe('<html></html>');
+      expect(resOld.domSnapshot.html).toBe('<html></html>');
+      // The logger object must never be injected as a script in either order;
+      // a swap regression would push the logger's stringified form here.
+      for (const s of injectedNew.scripts) expect(typeof s).toBe('string');
+      for (const s of injectedOld.scripts) expect(typeof s).toBe('string');
+      expect(injectedNew.scripts).toEqual(injectedOld.scripts);
+    });
+
     // CE MAJOR 3: parentFrame failure at depth=1 must also raise
     // PercyContextLost (not silently continue). captureCorsIframes then
     // breaks out of the outer sibling loop, preserving any partial capture
