@@ -7,6 +7,7 @@ const {
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
+  filterSensitiveCookies,
   isUnsupportedIframeSrc,
   getOrigin,
   waitForReady
@@ -37,6 +38,28 @@ describe('snapshot helpers', () => {
     });
   });
 
+  describe('filterSensitiveCookies', () => {
+    afterEach(() => { delete process.env.PERCY_FORWARD_ALL_COOKIES; });
+
+    it('drops session/auth cookies and keeps benign ones (PER-8720)', () => {
+      const cookies = [
+        { name: 'session_id' }, { name: 'jwt' }, { name: 'authToken' },
+        { name: 'csrf' }, { name: 'theme' }, { name: 'cart_id' }
+      ];
+      expect(filterSensitiveCookies(cookies).map(c => c.name)).toEqual(['theme', 'cart_id']);
+    });
+
+    it('forwards all cookies when PERCY_FORWARD_ALL_COOKIES=true', () => {
+      process.env.PERCY_FORWARD_ALL_COOKIES = 'true';
+      const cookies = [{ name: 'session_id' }, { name: 'theme' }];
+      expect(filterSensitiveCookies(cookies)).toEqual(cookies);
+    });
+
+    it('tolerates non-array input', () => {
+      expect(filterSensitiveCookies(undefined)).toBe(undefined);
+    });
+  });
+
   describe('captureSerializedDOM', () => {
     it('injects serialization flags and cookies', async () => {
       const browser = {
@@ -49,7 +72,8 @@ describe('snapshot helpers', () => {
           cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
         },
         getCookies(cb) {
-          cb({ value: [{ name: 'session', value: '123' }] });
+          // a sensitive cookie (filtered out) and a benign one (kept)
+          cb({ value: [{ name: 'session', value: '123' }, { name: 'theme', value: 'dark' }] });
         }
       };
 
@@ -59,7 +83,8 @@ describe('snapshot helpers', () => {
       expect(result.url).toBe('http://example.com');
       expect(result.domSnapshot).toMatchObject({
         html: '<html></html>',
-        cookies: [{ name: 'session', value: '123' }]
+        // session cookie stripped (PER-8720); benign cookie retained
+        cookies: [{ name: 'theme', value: 'dark' }]
       });
       // Options are passed directly to PercyDOM.serialize() which accepts camelCase
       expect(browser.lastArgs).toMatchObject({
