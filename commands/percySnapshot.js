@@ -46,8 +46,10 @@ module.exports = class PercySnapshotCommand {
       // Readiness gate — runs before serialize when CLI supports it.
       const readinessDiagnostics = await waitForReady(this.api, options, utils, log);
 
-      // Serialize and capture the DOM
-      let { domSnapshot, url } = await captureDOM(this.api, options, utils, log, domScript);
+      // Thread domScript + log through ctx so concurrent percySnapshot calls
+      // (parallel workers in the same Node process) don't race on shared
+      // module-level state.
+      let { domSnapshot, url } = await captureDOM(this.api, options, utils, domScript, log);
 
       // Attach readiness diagnostics so the CLI can log timing and pass/fail
       if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object' && !Array.isArray(domSnapshot)) {
