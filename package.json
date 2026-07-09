@@ -1,7 +1,7 @@
 {
   "name": "@percy/nightwatch",
   "description": "Nightwatch client library for visual testing with Percy",
-  "version": "2.2.1-beta.0",
+  "version": "2.2.1-beta.1",
   "license": "MIT",
   "author": "Perceptual Inc.",
   "repository": "https://github.com/percy/percy-nightwatch",
@@ -29,14 +29,14 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "^1.32.0",
+    "@percy/sdk-utils": "1.32.3-beta.1",
     "@percy/selenium-webdriver": "^2.2.3"
   },
   "peerDependencies": {
     "nightwatch": ">=1 || >=2 || >=3"
   },
   "devDependencies": {
-    "@percy/cli": "^1.32.0",
+    "@percy/cli": "1.31.14",
     "cross-env": "^10.1.0",
     "eslint": "^7.11.0",
     "eslint-config-standard": "^16.0.1",
@@ -49,5 +49,6 @@
     "nightwatch": "^3.12.3",
     "nyc": "^17.1.0",
     "tsd": "^0.33.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

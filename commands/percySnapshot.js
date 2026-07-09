@@ -46,9 +46,13 @@ module.exports = class PercySnapshotCommand {
       // Readiness gate — runs before serialize when CLI supports it.
       const readinessDiagnostics = await waitForReady(this.api, options, utils, log);
 
-      // Serialize and capture the DOM
+      // Serialize and capture the DOM. Merge .percy.yml config with per-snapshot
+      // options (per-call wins) before handing them to serialize.
+      // domScript + log are threaded through so concurrent percySnapshot calls
+      // (parallel workers in the same Node process) don't race on shared
+      // module-level state.
       const mergedOptions = utils.mergeSnapshotOptions(options);
-      let { domSnapshot, url } = await captureDOM(this.api, mergedOptions, utils, log, domScript);
+      let { domSnapshot, url } = await captureDOM(this.api, mergedOptions, utils, domScript, log);
 
       // Attach readiness diagnostics so the CLI can log timing and pass/fail
       if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object' && !Array.isArray(domSnapshot)) {
@@ -62,8 +66,24 @@ module.exports = class PercySnapshotCommand {
         ...snapshotOptions
       } = options;
 
+      // Sanitize caller-supplied options before spreading them into the outbound
+      // POST body (CWE-284/CWE-1321 — PER-8722): drop prototype-pollution keys
+      // and code-bearing fields the SDK must never forward. clientInfo /
+      // environmentInfo are hard-coded AFTER the spread so callers can't override.
+      const BLOCKED_OPTION_KEYS = new Set([
+        '__proto__', 'constructor', 'prototype', 'execute', 'domTransformation'
+      ]);
+      const safeOptions = {};
+      for (const key of Object.keys(snapshotOptions)) {
+        if (BLOCKED_OPTION_KEYS.has(key)) {
+          log.debug?.(`Ignoring disallowed percySnapshot option: ${key}`);
+          continue;
+        }
+        safeOptions[key] = snapshotOptions[key];
+      }
+
       const postData = {
-        ...snapshotOptions,
+        ...safeOptions,
         domSnapshot,
         environmentInfo: ENV_INFO,
         clientInfo: CLIENT_INFO,
