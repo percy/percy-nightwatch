@@ -3,6 +3,7 @@ const expect = typeof expectModule === 'function'
   ? expectModule
   : expectModule.default || expectModule.expect;
 const {
+  injectPercyDOM,
   captureSerializedDOM,
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
@@ -57,6 +58,42 @@ describe('snapshot helpers', () => {
 
     it('tolerates non-array input', () => {
       expect(filterSensitiveCookies(undefined)).toBe(undefined);
+    });
+  });
+
+  describe('injectPercyDOM', () => {
+    function makeBrowser({ injectResult = { value: null }, verifyResult } = {}) {
+      return {
+        calls: [],
+        execute(fn, args, cb) {
+          this.calls.push(fn);
+          cb(this.calls.length === 1 ? injectResult : verifyResult);
+        }
+      };
+    }
+
+    it('injects the script and resolves when PercyDOM is defined', async () => {
+      const browser = makeBrowser({ verifyResult: { value: true } });
+      await expect(injectPercyDOM(browser, 'window.PercyDOM = {}')).resolves.toBe(undefined);
+      expect(browser.calls.length).toBe(2);
+      expect(browser.calls[0]).toBe('window.PercyDOM = {}');
+    });
+
+    it('rejects when the injected script did not define PercyDOM', async () => {
+      const browser = makeBrowser({ verifyResult: { value: false } });
+      await expect(injectPercyDOM(browser, 'window.foo = 1;'))
+        .rejects.toThrow('PercyDOM is not available after injecting the DOM serialization script');
+    });
+
+    it('rejects when the verification returns no result', async () => {
+      const browser = makeBrowser({ verifyResult: undefined });
+      await expect(injectPercyDOM(browser, '')).rejects.toThrow('PercyDOM is not available');
+    });
+
+    it('rejects with the driver error when injection fails', async () => {
+      const browser = makeBrowser({ injectResult: { status: -1, error: 'boom' } });
+      await expect(injectPercyDOM(browser, 'bad(')).rejects.toBe('boom');
+      expect(browser.calls.length).toBe(1);
     });
   });
 
