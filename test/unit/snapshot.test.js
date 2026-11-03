@@ -7,7 +7,6 @@ const {
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
   slowScrollToBottom,
-  filterSensitiveCookies,
   isUnsupportedIframeSrc,
   getOrigin,
   waitForReady
@@ -38,25 +37,99 @@ describe('snapshot helpers', () => {
     });
   });
 
-  describe('filterSensitiveCookies', () => {
-    afterEach(() => { delete process.env.PERCY_FORWARD_ALL_COOKIES; });
+  describe('cookie forwarding', () => {
+    const modulePath = require.resolve('../../lib/snapshot');
+    const cookieJar = [
+      { name: 'session_id', value: 's3cr3t', domain: 'example.com', secure: true },
+      { name: 'auth_token', value: 'abc' },
+      { name: 'theme', value: 'dark' }
+    ];
+    let snapshotModule;
 
-    it('drops session/auth cookies and keeps benign ones (PER-8720)', () => {
-      const cookies = [
-        { name: 'session_id' }, { name: 'jwt' }, { name: 'authToken' },
-        { name: 'csrf' }, { name: 'theme' }, { name: 'cart_id' }
-      ];
-      expect(filterSensitiveCookies(cookies).map(c => c.name)).toEqual(['theme', 'cart_id']);
+    function cookieBrowser() {
+      return {
+        getCookiesCalls: 0,
+        execute(fn, args, cb) {
+          cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
+        },
+        getCookies(cb) {
+          this.getCookiesCalls += 1;
+          cb({ value: cookieJar.map(c => ({ ...c })) });
+        }
+      };
+    }
+
+    function collectingLog() {
+      const warnings = [];
+      return { warnings, debug: () => {}, info: () => {}, warn: msg => warnings.push(msg) };
+    }
+
+    beforeEach(() => {
+      // Load a fresh copy so the once-per-process warning state starts clean.
+      delete require.cache[modulePath];
+      snapshotModule = require('../../lib/snapshot');
     });
 
-    it('forwards all cookies when PERCY_FORWARD_ALL_COOKIES=true', () => {
+    afterEach(() => {
+      delete process.env.PERCY_DO_NOT_USE_CAPTURED_COOKIES;
+      delete process.env.PERCY_FORWARD_ALL_COOKIES;
+      delete require.cache[modulePath];
+    });
+
+    it('forwards session and auth cookies unchanged by default', async () => {
+      const log = collectingLog();
+      const { domSnapshot } = await snapshotModule.captureSerializedDOM(cookieBrowser(), {}, {}, null, log);
+
+      expect(domSnapshot.cookies).toEqual(cookieJar);
+      expect(log.warnings).toEqual([]);
+    });
+
+    it('sends no cookies and warns once when PERCY_DO_NOT_USE_CAPTURED_COOKIES=true', async () => {
+      process.env.PERCY_DO_NOT_USE_CAPTURED_COOKIES = 'true';
+      const log = collectingLog();
+      const browser = cookieBrowser();
+
+      const first = await snapshotModule.captureSerializedDOM(browser, {}, {}, null, log);
+      const second = await snapshotModule.captureSerializedDOM(browser, {}, {}, null, log);
+
+      expect(first.domSnapshot.cookies).toEqual([]);
+      expect(second.domSnapshot.cookies).toEqual([]);
+      expect(browser.getCookiesCalls).toBe(0);
+      expect(log.warnings).toEqual([snapshotModule.COOKIES_OPT_OUT_WARNING]);
+      expect(log.warnings[0]).toContain('PERCY_DO_NOT_USE_CAPTURED_COOKIES');
+    });
+
+    it('does not opt out for values other than "true"', async () => {
+      process.env.PERCY_DO_NOT_USE_CAPTURED_COOKIES = 'false';
+      const log = collectingLog();
+      const { domSnapshot } = await snapshotModule.captureSerializedDOM(cookieBrowser(), {}, {}, null, log);
+
+      expect(domSnapshot.cookies).toEqual(cookieJar);
+      expect(log.warnings).toEqual([]);
+    });
+
+    it('still accepts the legacy PERCY_FORWARD_ALL_COOKIES=true setting', async () => {
       process.env.PERCY_FORWARD_ALL_COOKIES = 'true';
-      const cookies = [{ name: 'session_id' }, { name: 'theme' }];
-      expect(filterSensitiveCookies(cookies)).toEqual(cookies);
+      const log = collectingLog();
+      const { domSnapshot } = await snapshotModule.captureSerializedDOM(cookieBrowser(), {}, {}, null, log);
+
+      expect(domSnapshot.cookies).toEqual(cookieJar);
+      expect(log.warnings).toEqual([]);
     });
 
-    it('tolerates non-array input', () => {
-      expect(filterSensitiveCookies(undefined)).toBe(undefined);
+    it('does not throw without a logger when opted out', async () => {
+      process.env.PERCY_DO_NOT_USE_CAPTURED_COOKIES = 'true';
+      const { domSnapshot } = await snapshotModule.captureSerializedDOM(cookieBrowser(), {}, {}, null, null);
+
+      expect(domSnapshot.cookies).toEqual([]);
+    });
+
+    it('fails open to no cookies when the cookie read errors', async () => {
+      const browser = cookieBrowser();
+      browser.getCookies = () => { throw new Error('boom'); };
+      const { domSnapshot } = await snapshotModule.captureSerializedDOM(browser, {}, {}, null, collectingLog());
+
+      expect(domSnapshot.cookies).toEqual([]);
     });
   });
 
@@ -72,7 +145,7 @@ describe('snapshot helpers', () => {
           cb({ value: { domSnapshot: { html: '<html></html>' }, url: 'http://example.com' } });
         },
         getCookies(cb) {
-          // a sensitive cookie (filtered out) and a benign one (kept)
+          // session-like and benign cookies are both forwarded
           cb({ value: [{ name: 'session', value: '123' }, { name: 'theme', value: 'dark' }] });
         }
       };
@@ -83,8 +156,7 @@ describe('snapshot helpers', () => {
       expect(result.url).toBe('http://example.com');
       expect(result.domSnapshot).toMatchObject({
         html: '<html></html>',
-        // session cookie stripped (PER-8720); benign cookie retained
-        cookies: [{ name: 'theme', value: 'dark' }]
+        cookies: [{ name: 'session', value: '123' }, { name: 'theme', value: 'dark' }]
       });
       // Options are passed directly to PercyDOM.serialize() which accepts camelCase
       expect(browser.lastArgs).toMatchObject({
