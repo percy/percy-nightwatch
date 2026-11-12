@@ -95,6 +95,12 @@ OK. 2 assertions passed.
 - `name` - The snapshot name; must be unique to each snapshot
 - `options` - [See per-snapshot configuration options](https://www.browserstack.com/docs/percy/take-percy-snapshots/overview#per-snapshot-configuration)
 
+### Cookies
+
+The SDK sends the browser's cookies with each snapshot so Percy's asset discovery can load pages and assets that need a logged-in session. To stop sending cookies, set `PERCY_DO_NOT_USE_CAPTURED_COOKIES=true`. When it is set, the SDK logs a one-time warning: assets behind authentication may fail to load during asset discovery, so snapshots can render incorrectly.
+
+`PERCY_FORWARD_ALL_COOKIES` is no longer needed; cookies are forwarded by default and the variable is ignored.
+
 ### Responsive snapshots
 
 Set `responsiveSnapshotCapture: true` (and optionally `widths`) to have the Nightwatch SDK resize the browser window and capture DOM snapshots at multiple breakpoints in a single Percy snapshot. The SDK implementation:
