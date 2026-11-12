@@ -1,24 +1,12 @@
 // Collect client and environment information
 const sdkPkg = require('../package.json');
 const nightwatchPkg = require('nightwatch/package.json');
-const { captureDOM, waitForReady } = require('../lib/snapshot');
+const { captureDOM, injectPercyDOM, waitForReady } = require('../lib/snapshot');
 const { createRegion } = require('../lib/regions');
 const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${nightwatchPkg.name}/${nightwatchPkg.version}`;
 const NOT_RUNNING_ERROR = 'Percy is not running, disabling snapshots.';
 const AUTOMATE_ERROR = 'Invalid function call - percySnapshot(). Please use percyScreenshot() function while using Percy with Automate. For more information on usage of percyScreenshot, refer https://www.browserstack.com/docs/percy/integrate/functional-and-visual';
-
-// Take a DOM snapshot and post it to the snapshot endpoint
-function injectPercyDOM(browser, domScript) {
-  return new Promise((resolve, reject) => {
-    browser.execute(domScript, [], (result) => {
-      if (result && result.status && result.status !== 0 && result.error) {
-        return reject(result.error);
-      }
-      resolve();
-    });
-  });
-}
 
 module.exports = class PercySnapshotCommand {
   async command(name, options = {}) {

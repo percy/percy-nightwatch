@@ -1,8 +1,10 @@
+const vm = require('vm');
 const expectModule = require('expect');
 const expect = typeof expectModule === 'function'
   ? expectModule
   : expectModule.default || expectModule.expect;
 const {
+  injectPercyDOM,
   captureSerializedDOM,
   ignoreCanvasSerializationErrors,
   ignoreStyleSheetSerializationErrors,
@@ -57,6 +59,58 @@ describe('snapshot helpers', () => {
 
     it('tolerates non-array input', () => {
       expect(filterSensitiveCookies(undefined)).toBe(undefined);
+    });
+  });
+
+  describe('injectPercyDOM', () => {
+    // Runs every executed script in one shared VM context standing in for the
+    // page, so the verification predicate is really evaluated against what
+    // the injected script defined. Individual results can still be stubbed.
+    function makeBrowser(stubs = {}) {
+      const context = vm.createContext({});
+      context.window = context;
+      return {
+        calls: [],
+        execute(fn, args, cb) {
+          this.calls.push(fn);
+          if (this.calls.length === 1 && 'injectResult' in stubs) return cb(stubs.injectResult);
+          if (this.calls.length === 2 && 'verifyResult' in stubs) return cb(stubs.verifyResult);
+          const source = typeof fn === 'function' ? `(${fn})()` : fn;
+          cb({ value: vm.runInContext(source, context) });
+        }
+      };
+    }
+
+    it('injects the script and resolves when PercyDOM.serialize is defined', async () => {
+      const script = 'window.PercyDOM = { serialize: function() {} }';
+      const browser = makeBrowser();
+      await expect(injectPercyDOM(browser, script)).resolves.toBe(undefined);
+      expect(browser.calls.length).toBe(2);
+      expect(browser.calls[0]).toBe(script);
+    });
+
+    it('rejects when the injected script defined PercyDOM without serialize', async () => {
+      const browser = makeBrowser();
+      await expect(injectPercyDOM(browser, 'window.PercyDOM = {}'))
+        .rejects.toThrow('PercyDOM is not available after injecting the DOM serialization script');
+      expect(browser.calls.length).toBe(2);
+    });
+
+    it('rejects when the injected script did not define PercyDOM', async () => {
+      const browser = makeBrowser();
+      await expect(injectPercyDOM(browser, 'window.foo = 1;'))
+        .rejects.toThrow('PercyDOM is not available after injecting the DOM serialization script');
+    });
+
+    it('rejects when the verification returns no result', async () => {
+      const browser = makeBrowser({ verifyResult: undefined });
+      await expect(injectPercyDOM(browser, '')).rejects.toThrow('PercyDOM is not available');
+    });
+
+    it('rejects with the driver error when injection fails', async () => {
+      const browser = makeBrowser({ injectResult: { status: -1, error: 'boom' } });
+      await expect(injectPercyDOM(browser, 'bad(')).rejects.toBe('boom');
+      expect(browser.calls.length).toBe(1);
     });
   });
 
